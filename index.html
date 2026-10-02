@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simulador de flujo de aire Hunter Industrial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#FFFFFF; --panel:#FFFFFF; --ink:#000000; --muted:#4A4A4A; --line:#D6D9D7;
+  --accent:#3E7A4F; --accent-hover:#2F5F3C; --accent-ink:#FFFFFF; --stage:#0F1C21; --warn:#B4472F; --ok:#3E7A4F;
+  --font:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:light;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.45}
+button,input,select{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:340px 1fr;min-height:100vh}
+aside{background:var(--panel);border-right:1px solid var(--line);padding:22px 20px 40px;overflow-y:auto;max-height:100vh;position:sticky;top:0}
+main{padding:22px 24px 40px;min-width:0}
+h1{font-size:22px;line-height:1.15;margin:0 0 4px;font-weight:700;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 20px;font-size:13px}
+fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:16px 0 6px}
+legend{font-weight:600;font-size:15px;padding:0 0 8px}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+label{display:block;font-size:12px;color:var(--muted)}
+label input,label select{display:block;width:100%;margin-top:3px}
+input[type=number],select{background-color:#fff;border:1px solid var(--line);border-radius:6px;padding:7px 8px;min-width:0;color:var(--ink)}
+select{-webkit-appearance:none;-moz-appearance:none;appearance:none;padding-right:30px;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%233E7A4F' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;background-size:12px 8px}
+select:hover,input[type=number]:hover{border-color:var(--accent)}
+select option,select optgroup{background:#fff;color:#000}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.btn{background:var(--accent);border:1px solid var(--accent);color:var(--accent-ink);border-radius:6px;padding:8px 12px;cursor:pointer;font-weight:500}
+.btn:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{background:#fff;border-color:var(--warn);color:var(--warn)}
+.btn.danger:hover{background:#FBEDEA}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-top:3px}
+.seg button{flex:1;border:0;background:transparent;padding:7px 6px;cursor:pointer;font-size:13px}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+.chips{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-wrap:wrap;gap:6px;max-height:120px;overflow-y:auto}
+.chips button{border:1px solid var(--accent);color:var(--accent);background:#fff;border-radius:999px;padding:4px 11px;cursor:pointer;font-size:13px}
+.chips button[aria-current=true]{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+.chips .empty{color:var(--muted);font-size:13px}
+.val{float:right;color:var(--ink);font-variant-numeric:tabular-nums}
+.warn{color:var(--warn);font-size:12px;margin:2px 0 10px}
+.warn:empty{display:none}
+.note{font-size:12px;color:var(--muted);margin-top:14px}
+.checks label{display:flex;align-items:center;gap:8px;color:var(--ink);font-size:13px;margin-bottom:6px}
+.checks input{width:auto;margin:0}
+.editor{background:#F6F8F6;border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:12px}
+.editor h3{margin:0 0 10px;font-size:14px;font-weight:600}
+.editor input[type=number],.editor select{background-color:#fff}
+.spec{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:12px;margin:0 0 12px}
+.spec dt{color:var(--muted)} .spec dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+
+.recs{margin-bottom:22px}
+.recgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.rec{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px 16px;display:flex;flex-direction:column}
+.rec.best{border:2px solid var(--accent);padding:13px 15px 15px}
+.rec .rank{font-size:12px;color:var(--muted);margin:0 0 2px}
+.rec.best .rank{color:var(--accent);font-weight:600}
+.rec h3{font-size:22px;font-weight:700;margin:0;letter-spacing:-.01em;line-height:1.15}
+.rec .lay{font-size:13px;color:var(--muted);margin:2px 0 10px}
+.rec dl{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:13px;margin:0 0 10px}
+.rec dt{color:var(--muted)} .rec dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.rec .tags{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 12px}
+.rec .tags span{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:1px 8px}
+.rec .btn{margin-top:auto}
+.rec .inuse{margin-top:auto;font-size:13px;color:var(--ok);font-weight:600;padding:8px 0}
+.recmsg{font-size:13px;color:var(--muted);margin:0}
+.recmsg.bad{color:var(--warn)}
+.stats .reportbtn{margin-left:auto;align-self:center}
+.rep-overlay{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.55);overflow-y:auto;
+  padding:calc(env(safe-area-inset-top,0px) + 20px) 16px calc(env(safe-area-inset-bottom,0px) + 30px)}
+.rep-overlay[hidden]{display:none}
+.rep-bar{max-width:880px;margin:0 auto 14px;background:#fff;border-radius:10px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.rep-bar label{flex:1 1 200px}
+.rep-bar input[type=text]{display:block;width:100%;margin-top:3px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:7px 8px;color:#000}
+.rep-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn.ghost{background:#fff;color:var(--accent);border-color:var(--accent)}
+.btn.ghost:hover{background:#EEF5F0}
+.rep-msg{flex-basis:100%;margin:0;font-size:12px;color:var(--muted)}
+.rep-msg:empty{display:none}
+.rep-wrap{max-width:880px;margin:0 auto;overflow:hidden}
+.rep-page{width:816px;height:1056px;background:#fff;color:#000;padding:34px 40px 28px;box-sizing:border-box;transform-origin:top left;
+  display:flex;flex-direction:column;gap:12px;overflow:hidden;font-family:var(--font);font-size:11px;line-height:1.4;box-shadow:0 2px 18px rgba(0,0,0,.25)}
+.rp-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid var(--accent);padding-bottom:10px}
+.rp-brand{margin:0;color:var(--accent);font-weight:700;font-size:12px}
+.rp-head h1{margin:2px 0 0;font-size:26px;line-height:1.1;letter-spacing:-.01em}
+.rp-proj{margin:3px 0 0;font-size:14px}
+.rp-meta{text-align:right;font-size:11px;display:flex;flex-direction:column;gap:2px}
+.rp-stats{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.rp-stat{border:1px solid #D6D9D7;border-radius:6px;padding:8px 9px}
+.rp-stat b{display:block;font-size:19px;line-height:1.05;font-weight:700;font-variant-numeric:tabular-nums}
+.rp-stat span{display:block;font-size:9.5px;color:#333;margin-top:3px;line-height:1.25}
+.rp-stat.hero{background:var(--accent);border-color:var(--accent);color:#fff}
+.rp-stat.hero span{color:#fff}
+.rp-fig{margin:0}
+.rp-fig .img{background:#0F1C21;border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.rp-fig img{max-width:100%;max-height:100%;display:block}
+.rp-fig figcaption{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:9.5px;color:#333;margin-top:4px}
+.rp-scale{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.rp-scale i{display:block;width:110px;height:7px;border-radius:4px}
+.rp-cols{display:grid;grid-template-columns:1fr 1.25fr;gap:18px;flex:1;min-height:0}
+.rp-cols h2{font-size:12.5px;margin:0 0 5px;color:var(--accent)}
+.rp-cols section+section{margin-top:10px}
+.rp-dl{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:0}
+.rp-dl dt{color:#333}.rp-dl dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.rp-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.rp-table th{text-align:left;font-weight:600;border-bottom:1.5px solid #000;padding:3px 4px;font-size:10px}
+.rp-table td{border-bottom:1px solid #E1E4E2;padding:3px 4px}
+.rp-table td.n,.rp-table th.n{text-align:right}
+.rp-bar{display:flex;height:14px;border-radius:4px;overflow:hidden;margin:2px 0 6px}
+.rp-legend{display:grid;grid-template-columns:1fr auto;gap:2px 10px}
+.rp-legend span{display:flex;align-items:center;gap:6px}
+.rp-legend i{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}
+.rp-legend b{font-weight:400;text-align:right;font-variant-numeric:tabular-nums}
+.rp-ul{margin:0;padding-left:15px}
+.rp-foot{border-top:1px solid #D6D9D7;padding-top:7px;font-size:8.5px;color:#444;line-height:1.35}
+@media print{
+  @page{size:letter portrait;margin:0}
+  html,body{background:#fff!important;padding:0!important}
+  body *{visibility:hidden!important}
+  #repPage,#repPage *{visibility:visible!important}
+  #repPage{position:fixed!important;left:0;top:0;transform:none!important;box-shadow:none!important}
+  .rep-overlay{background:#fff!important;padding:0!important;overflow:visible!important}
+}
+
+.runbox{border-top:1px solid var(--line);padding:16px 0 10px}
+.btn.run{width:100%;padding:12px;font-size:15px;font-weight:600}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.runmsg{font-size:12px;color:var(--muted);margin:8px 0 0}
+.runmsg.bad{color:var(--warn)}
+.stale{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:10px 14px;margin:0 0 12px;font-size:13px}
+.stale[hidden]{display:none}
+.recgrid.dim{opacity:.5}
+.empty-state{background:var(--panel);border:1px dashed var(--line);border-radius:10px;padding:18px 20px;color:var(--muted);font-size:14px;margin:0}
+
+.stats{display:flex;flex-wrap:wrap;gap:28px;margin:0 0 16px;align-items:flex-end}
+.stat b{display:block;font-size:26px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.stat span{font-size:12px;color:var(--muted)}
+.stat.hero b{font-size:40px;color:var(--accent)}
+.stage{background:var(--stage);border:1px solid var(--line);border-radius:10px;position:relative;overflow:hidden}
+.stage canvas{display:block;width:100%;touch-action:none}
+#plan{height:min(62vh,600px);cursor:crosshair}
+#section{height:230px}
+.cap{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:18px 0 8px;flex-wrap:wrap}
+.cap h2{font-size:15px;margin:0;font-weight:600}
+.cap p{margin:0;font-size:12px;color:var(--muted)}
+.scale{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)}
+.scale i{display:block;width:180px;height:10px;border-radius:5px}
+.row.two{grid-template-columns:1fr 1fr}
+#roofSeg button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 4px 5px;color:var(--ink)}
+#roofSeg button[aria-pressed=true]{color:var(--accent-ink)}
+#roofSeg button:not([aria-pressed=true]) .roofico path:last-child{stroke:var(--accent)}
+.roofico{display:block}
+.row[hidden]{display:none}
+.langbar{display:flex;justify-content:flex-end;margin:-6px 0 10px}
+.langbar .seg{width:auto;margin:0}
+.langbar .seg button{flex:none;padding:5px 12px;font-size:12px}
+.hint{position:absolute;left:14px;bottom:12px;color:#9FB3B6;font-size:12px;pointer-events:none}
+
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  aside{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line)}
+  main{padding:16px}
+  #plan{height:52vh}
+  .stat.hero b{font-size:32px}
+  .hint{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <div class="langbar"><div class="seg" id="langSeg" role="group" aria-label="Idioma / Language">
+    <button type="button" data-l="es" aria-pressed="true">Español</button>
+    <button type="button" data-l="en" aria-pressed="false">English</button>
+  </div></div>
+  <h1 data-i18n="appTitle">Simulador de flujo de aire Hunter Industrial</h1>
+  <p class="sub" data-i18n="appSub"></p>
+
+  <fieldset>
+    <legend data-i18n="legFacility"></legend>
+    <label style="margin-bottom:10px"><span data-i18n="startFrom"></span>
+      <select id="roomPreset">
+        <option value="" selected data-i18n="pr_none"></option>
+        <option value="warehouse" data-i18n="pr_warehouse"></option>
+        <option value="plant" data-i18n="pr_plant"></option>
+        <option value="gym" data-i18n="pr_gym"></option>
+        <option value="hangar" data-i18n="pr_hangar"></option>
+        <option value="barn" data-i18n="pr_barn"></option>
+        <option value="shop" data-i18n="pr_shop"></option>
+        <option value="empty" data-i18n="pr_empty"></option>
+      </select>
+    </label>
+    <div class="row">
+      <label><span class="u-len">Length (ft)</span><input type="number" id="roomL" step="5" min="20" placeholder="–"></label>
+      <label><span class="u-len">Width (ft)</span><input type="number" id="roomW" step="5" min="20" placeholder="–"></label>
+      <label><span class="u-len">Ceiling (ft)</span><input type="number" id="roomH" step="1" min="9" placeholder="–"></label>
+    </div>
+    <label style="margin-bottom:10px"><span data-i18n="roofType"></span>
+      <div class="seg" id="roofSeg">
+        <button type="button" data-r="flat" aria-pressed="true"><span data-i18n="roof_flat"></span><svg class="roofico" viewBox="0 0 48 28" width="48" height="28" aria-hidden="true" focusable="false"><path d="M2 25 H46" stroke="currentColor" stroke-width="1.2" opacity=".5" fill="none"/><path d="M8 25 V11 M40 11 V25" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linejoin="round"/><path d="M5 11 H43" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button type="button" data-r="single" aria-pressed="false"><span data-i18n="roof_single"></span><svg class="roofico" viewBox="0 0 48 28" width="48" height="28" aria-hidden="true" focusable="false"><path d="M2 25 H46" stroke="currentColor" stroke-width="1.2" opacity=".5" fill="none"/><path d="M8 25 V16 M40 6 V25" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linejoin="round"/><path d="M5 16.8 L43 5.2" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button type="button" data-r="gable" aria-pressed="false"><span data-i18n="roof_gable"></span><svg class="roofico" viewBox="0 0 48 28" width="48" height="28" aria-hidden="true" focusable="false"><path d="M2 25 H46" stroke="currentColor" stroke-width="1.2" opacity=".5" fill="none"/><path d="M8 25 V15 M40 15 V25" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linejoin="round"/><path d="M5 16.3 L24 5 L43 16.3" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </label>
+    <div class="row two" id="roofOpts" hidden>
+      <label><span data-i18n="roofSlope"></span><input type="number" id="roofSlope" min="0" max="60" step="1" placeholder="–"></label>
+      <label><span data-i18n="roofAxis"></span><select id="roofAxis"><option value="W" data-i18n="axis_W"></option><option value="L" data-i18n="axis_L"></option></select></label>
+    </div>
+    <p class="note" id="roofInfo" style="margin:0 0 10px"></p>
+    <label><span data-i18n="units"></span>
+      <div class="seg" id="unitSeg">
+        <button type="button" data-u="m" aria-pressed="true" data-i18n="unit_m"></button>
+        <button type="button" data-u="ft" aria-pressed="false" data-i18n="unit_ft"></button>
+      </div>
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend data-i18n="legSite"></legend>
+    <label style="margin-bottom:10px"><span data-i18n="powerLbl"></span>
+      <select id="power">
+        <option value="any" data-i18n="pw_any"></option>
+        <option value="120" data-i18n="pw_120"></option>
+        <option value="240" data-i18n="pw_240"></option>
+        <option value="3240" data-i18n="pw_3240"></option>
+        <option value="3480" data-i18n="pw_3480"></option>
+      </select>
+    </label>
+    <div class="checks">
+      <label><input type="checkbox" id="wet"> <span data-i18n="wetLbl"></span></label>
+    </div>
+  </fieldset>
+
+  <div class="runbox">
+    <button class="btn primary run" id="runBtn" type="button" disabled data-i18n="run"></button>
+    <p class="runmsg" id="runMsg"></p>
+  </div>
+
+  <fieldset>
+    <legend data-i18n="legFans"></legend>
+    <p class="note" id="fanLocked" style="margin:0 0 10px" data-i18n="fanLocked"></p>
+    <div id="fanBody" hidden>
+    <ul class="chips" id="fanList"></ul>
+    <div class="btns">
+      <button class="btn primary" id="addFan" type="button" data-i18n="addFan"></button>
+      <button class="btn" id="addJan" type="button" data-i18n="addJan"></button>
+      <button class="btn" id="autoLayout" type="button" data-i18n="autoLayout"></button>
+    </div>
+    <div class="editor" id="fanEditor">
+      <h3 id="fanTitle">Fan 1</h3>
+      <label style="margin-bottom:10px"><span data-i18n="model"></span>
+        <select id="fanModel"></select>
+      </label>
+      <dl class="spec" id="fanSpec"></dl>
+      <label><span data-i18n="speed"></span> <span class="val" id="speedVal"></span>
+        <input type="range" id="fanSpeed">
+      </label>
+      <label style="margin-top:8px"><span id="mountLbl">Blade height above floor</span> <span class="val" id="mountVal"></span>
+        <input type="range" id="fanMount" step="0.05">
+      </label>
+      <label style="margin-top:8px" id="aimWrap"><span data-i18n="aim"></span> <span class="val" id="aimVal"></span>
+        <input type="range" id="fanAim" min="0" max="355" step="5">
+      </label>
+      <p class="warn" id="fanWarn"></p>
+      <label id="dirWrap"><span data-i18n="mode"></span>
+        <div class="seg" id="dirSeg">
+          <button type="button" data-d="down" aria-pressed="true" data-i18n="fwd"></button>
+          <button type="button" data-d="up" aria-pressed="false" data-i18n="rev"></button>
+        </div>
+      </label>
+      <div class="btns" style="margin:12px 0 0">
+        <button class="btn danger" id="delFan" type="button" data-i18n="delFan"></button>
+      </div>
+    </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend data-i18n="legRack"></legend>
+    <ul class="chips" id="obsList"></ul>
+    <div class="btns">
+      <button class="btn" id="addRack" type="button" data-i18n="addRack"></button>
+      <button class="btn" id="addMachine" type="button" data-i18n="addMachine"></button>
+    </div>
+    <div class="editor" id="obsEditor">
+      <h3 id="obsTitle">Rack 1</h3>
+      <div class="row">
+        <label><span class="u-len2">Length (ft)</span><input type="number" id="obsL" step="1" min="1"></label>
+        <label><span class="u-len2">Depth (ft)</span><input type="number" id="obsD" step="1" min="1"></label>
+        <label><span class="u-len2">Height (ft)</span><input type="number" id="obsH" step="1" min="1"></label>
+      </div>
+      <div class="btns" style="margin:0">
+        <button class="btn" id="rotObs" type="button" data-i18n="rot"></button>
+        <button class="btn" id="dupObs" type="button" data-i18n="dup"></button>
+        <button class="btn danger" id="delObs" type="button" data-i18n="del"></button>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend data-i18n="legAnalysis"></legend>
+    <label><span data-i18n="measureAt"></span>
+      <div class="seg" id="zSeg">
+        <button type="button" data-z="0.3" aria-pressed="false" data-i18n="z_floor"></button>
+        <button type="button" data-z="1.1" aria-pressed="true" data-i18n="z_waist"></button>
+        <button type="button" data-z="1.6" aria-pressed="false" data-i18n="z_head"></button>
+      </div>
+    </label>
+    <label style="margin-top:10px"><span data-i18n="secDir"></span>
+      <div class="seg" id="secSeg">
+        <button type="button" data-a="x" aria-pressed="true" data-i18n="cut_x"></button>
+        <button type="button" data-a="y" aria-pressed="false" data-i18n="cut_y"></button>
+      </div>
+    </label>
+    <label style="margin-top:10px"><span data-i18n="sectionCut"></span> <span class="val" id="sliceVal"></span>
+      <input type="range" id="slice" min="0" max="1" step="0.002" value="0.5">
+    </label>
+    <div class="checks" style="margin-top:10px">
+      <label><input type="checkbox" id="showHeat" checked> <span data-i18n="showHeat"></span></label>
+      <label><input type="checkbox" id="showFlow" checked> <span data-i18n="showFlow"></span></label>
+    </div>
+  </fieldset>
+  <p class="note" data-i18n="sideNote"></p>
+</aside>
+
+<main>
+  <section class="recs" aria-live="polite">
+    <div class="cap" style="margin-top:0">
+      <h2 data-i18n="recsTitle"></h2>
+      <p id="recNote"></p>
+    </div>
+    <div class="stale" id="stale" hidden><span data-i18n="staleTxt"></span><button class="btn primary" id="rerunBtn" type="button" data-i18n="rerun"></button></div>
+    <div class="recgrid" id="recGrid"></div>
+  </section>
+
+  <div class="stats" aria-live="polite">
+    <div class="stat hero"><b id="sCool">–</b><span data-i18n="st_cool"></span></div>
+    <div class="stat"><b id="sAvg">–</b><span data-i18n="st_avg"></span></div>
+    <div class="stat"><b id="sCov">–</b><span id="sCovLbl"></span></div>
+    <div class="stat"><b id="sArea">–</b><span data-i18n="st_area"></span></div>
+    <div class="stat"><b id="sCfm">–</b><span id="sCfmLbl"></span></div>
+    <div class="stat"><b id="sPow">–</b><span id="sPowLbl"></span></div>
+    <button class="btn reportbtn" id="reportBtn" type="button" hidden data-i18n="reportBtn"></button>
+  </div>
+
+  <div class="cap">
+    <h2 data-i18n="floorPlan"></h2>
+    <div class="scale"><span data-i18n="still"></span><i id="scaleBar"></i><span id="scaleMax">600 FPM</span></div>
+  </div>
+  <div class="stage">
+    <canvas id="plan" data-i18n-aria="planAria"></canvas>
+    <div class="hint" data-i18n="hint"></div>
+  </div>
+
+  <div class="cap">
+    <h2 data-i18n="secTitle"></h2>
+    <p id="secNote"></p>
+  </div>
+  <div class="stage"><canvas id="section" data-i18n-aria="secAria"></canvas></div>
+</main>
+</div>
+
+<div class="rep-overlay" id="repOverlay" hidden role="dialog" aria-modal="true" data-i18n-aria="repAria">
+  <div class="rep-bar">
+    <label><span data-i18n="projName"></span><input type="text" id="repProject" data-i18n-ph="projPh"></label>
+    <label><span data-i18n="preparedBy"></span><input type="text" id="repBy" data-i18n-ph="byPh"></label>
+    <div class="rep-actions">
+      <button class="btn" id="repPdf" type="button" hidden data-i18n="pdf"></button>
+      <button class="btn" id="repPrint" type="button" data-i18n="print"></button>
+      <button class="btn ghost" id="repClose" type="button" data-i18n="close"></button>
+    </div>
+    <p class="rep-msg" id="repMsg"></p>
+  </div>
+  <div class="rep-wrap" id="repWrap"><div class="rep-page" id="repPage"></div></div>
+</div>
+
+<script>
+(() => {
+'use strict';
+/* ---------- Language ---------- */
+let LANG='es';
+const I18N={
+en:{
+appTitle:'Hunter Industrial Airflow Studio',
+appSub:'Enter the building and get the right Hunter fan for it, then see how the air moves, where people feel it, and where racking cuts it off.',
+legFacility:'Facility', startFrom:'Start from', pr_none:'Choose a facility type (optional)…', pr_warehouse:'Distribution warehouse', pr_plant:'Manufacturing plant',
+pr_gym:'Gymnasium', pr_hangar:'Aircraft hangar', pr_barn:'Dairy barn', pr_shop:'Small shop or showroom', pr_empty:'Empty building',
+units:'Units', unit_m:'Metres / m/s', unit_ft:'Feet / FPM', len_L:'Length', len_W:'Width', len_H:'Ceiling', len2_L:'Length', len2_D:'Depth', len2_H:'Height',
+legSite:'Site requirements', powerLbl:'Power available at the fan', pw_any:'Any', pw_120:'100–120V single-phase', pw_240:'200–240V single-phase',
+pw_3240:'200–240V three-phase', pw_3480:'380–480V three-phase', wetLbl:'Wet location (exposed to rain or washdown spray)',
+run:'Run simulation', running:'Running…', legFans:'Fans', fanLocked:'Fans are picked for you when you run the simulation. You can then adjust them here.',
+addFan:'Add fan', addJan:'Add Jan Fan', autoLayout:'Re-space this model', model:'Model', speed:'Speed', aim:'Aim direction', mode:'Mode',
+fwd:'Forward (cooling)', rev:'Reverse (destrat)', delFan:'Remove fan', legRack:'Racking and equipment', addRack:'Add racking row', addMachine:'Add equipment',
+rot:'Rotate 90°', dup:'Duplicate', del:'Remove', legAnalysis:'Analysis', measureAt:'Measure at', z_floor:'Floor', z_waist:'Waist', z_head:'Head',
+sectionCut:'Section cut', showHeat:'Air-speed heat map', showFlow:'Moving airflow',
+sideNote:'Airflow and power for ECO, Titan and XP (8–14 ft) come from Hunter\'s March 2024 AMCA certified performance catalogs, for the supply you select (380–480V 3Φ when set to Any); speeds between the certified 20% steps are interpolated. TRAK Edge and Jan Fan use spec-sheet CFM. DDI and XP 7 ft have no AMCA data, so their airflow is estimated from their published affected area and corrected against AMCA results for the nearest diameter. DDI spacing is derived from its affected-area diameter. This is a fast visual approximation, not a CFD study; confirm final layouts against sprinkler (NFPA 13), lighting, structure and local code.',
+recsTitle:'Recommended fans for this building', staleTxt:'Your inputs changed since the last run. These results are out of date.', rerun:'Run again',
+emptyState:'No simulation yet. Enter the building size on the left, add any racking or equipment, then press Run simulation. The tool will pick the best Hunter fan and lay it out.',
+st_cool:'Average feels-cooler effect', st_avg:'Average air speed', st_area:'Floor area per fan', st_cov:'Open floor with a breeze ({v} or more)',
+st_cfm:'Total airflow', st_cfm_est:' (includes estimates)', st_pow:'Power at current speeds', st_pow_max:'{list} at max rating', st_pow_na:'{list} not listed',
+reportBtn:'Create one-page report', floorPlan:'Floor plan', still:'Still', planAria:'Floor plan with air speed. Drag fans or racking to move them, double-click to add a fan.',
+hint:'Drag fans or racks to move them · Double-click empty floor to add a fan', secTitle:'Section through the building', secAria:'Side section showing the air column and floor jet',
+secNote:'The dashed line on the plan shows where this cut is taken.', secStretch:' Height is stretched {x}× so the air column is readable.',
+repAria:'Layout report', projName:'Project name', projPh:'For example: Monterrey distribution center', preparedBy:'Prepared by', byPh:'Your name',
+pdf:'Download PDF', print:'Print', close:'Close',
+msg_enter:'Enter the building length, width and ceiling height to begin.', msg_low:'Ceilings under {h} are too low for any Hunter ceiling fan.',
+msg_stale:'Inputs changed. Run again to update the fan pick.', msg_running:'Simulation is running. Change inputs and run again any time.',
+msg_ready:'Ready. Add racking or equipment first if the building has any.', msg_checking:'Checking every model, size and speed against the AMCA data…',
+msg_needSize:'Enter the building size before adding racking or equipment.',
+rec_none:'No Hunter ceiling fan fits these conditions. Check the ceiling height (HVLS needs about {hv}, TRAK Edge about {tr}), the power available, or turn off wet location.',
+rec_ok:'{p} of {c} model sizes cover at least {t}% of the open floor. Ranked by fewest fans, then lowest running power.',
+rec_bad:'No size reaches {t}% coverage here, so these are the closest. Racking or a very tall ceiling may be limiting reach.',
+rank_best:'Best fit', rank_closest:'Closest fit', rank_alt:'Alternative', rec_lay:'{nx} by {ny} grid, blades at {z} ({d} below the deck)',
+rec_cov:'Open floor with a breeze, full speed', rec_min:'Lowest speed that meets target', full_speed:'Full speed', rec_opw:'Power at that speed, all fans',
+max_tag:' (max)', not_listed:'Not listed', rec_fullw:'Power at full speed, all fans', rec_cfm:'Total airflow, full speed', airflow_data:'Airflow data',
+src_amca:'AMCA certified', src_published:'Spec sheet', src_estimated:'Estimated', rated_supply:'Rated supply', spacing:'Spacing', derived:' (derived)',
+tag_fewest:'Fewest fans', tag_lowpow:'Lowest power', tag_cov:'Most coverage', tag_short:'Below coverage target', in_use:'Showing this layout', use_layout:'Use this layout',
+plan_e1:'Enter the building size to begin', plan_e2:'Length, width and ceiling height are on the left', plan_press:'Press Run simulation to pick fans and see the airflow',
+sec_empty:'The side section appears once the building size is set', ceil_lbl:'{h} ceiling',
+fans_empty:'No fans yet. Use a recommendation, add one, or double-click the plan.', obs_empty:'Open floor. Add racking or equipment to see how it blocks airflow.',
+chip_fan:'Fan', chip_jan:'Jan', rack:'Rack', equip:'Equipment', fan_title:'Fan {id}', jan_title:'Jan Fan {id}',
+obj_rack:'rack', obj_equip:'equipment', obj2_rack:'of rack', obj2_equip:'of equipment',
+w_clear:'Blades are below {h} of floor clearance.', w_over:'Fan sits over {what} {id}, so its air column is blocked. Move it over an aisle.',
+w_near:'Blades are within {d} {what} {id}.', w_fight:'Fan {id} is closer than about two diameters, so the fans will fight each other.',
+w_wet:'{name} is damp rated, not wet rated.', w_power:'{name} does not run on the selected power supply.',
+r_airflow:'Airflow', r_spd_hl:'Speed (high / low)', r_sound:'Sound', r_motor:'Motor', r_supply:'Rated supply', r_at:'At {p}% speed', interp:' (interpolated)',
+r_power:'Power', r_standby:'Standby power', r_cfei:'CFEI at 100% / 40%', r_maxspd:'Max speed', r_air_at:'Airflow at this speed', src_sheet:'(spec sheet)',
+src_est:'(estimated from {ref} AMCA data)', r_maxpow:'Max power', r_spacing_d:'Spacing (derived)', r_spacing:'Recommended spacing', r_area:'Max affected area',
+r_weight:'Hanging weight', r_soundmax:'Sound at max speed', high:'High', low:'Low', of:'{a} of {b}', mount_circ:'Mounting height', mount_blade:'Blade height above floor',
+below_deck:'{a}, {b} below deck',
+line_ECO:'HVLS, 4 airfoils, VFD', line_TITAN:'HVLS, 5 airfoils, VFD', line_DDI:'HVLS, direct drive', line_XP:'HVLS, 120V, VFD', line_TRAK:'Commercial DC, wet rated', line_JAN:'Directional air circulator',
+rp_brand:'Hunter Industrial Fans', rp_title:'Airflow layout report', rp_untitled:'Untitled project', rp_by:'Prepared by {n}', rp_pow:'Power at set speeds', see_notes:' (see notes)',
+rp_area:'Floor area per ceiling fan', na:'n/a', rp_plan_cap:'Floor plan: air speed at {z}. Numbered circles are fans, grey blocks are racking or equipment, the dashed line marks the section below.',
+rp_sec_cap:'Section through the building showing the air column from each fan and the floor jet it creates.', rp_building:'Building', rp_size:'Floor size',
+rp_ceiling:'Ceiling height', rp_floorarea:'Floor area', rp_racks:'Racking and equipment', rp_items:'{n} items, {a}', none:'None', rp_power:'Power at the fan',
+not_spec:'Not specified', rp_wet:'Wet location', yes:'Yes', no:'No', rp_measured:'Results measured at', ztxt:'{name} height, {h}', custom:'Custom',
+rp_speedfloor:'Air speed across the open floor', band_under:'Under {v}', band_range:'{a} to {b}', band_over:'Over {v}', rp_fansel:'Fan selection',
+th_model:'Model', th_qty:'Qty', th_speed:'Speed', th_height:'Blade height', th_cfm:'Airflow each', th_w:'Power each', reverse:' (reverse)', rp_layout:'Layout',
+rp_grid:'{nx} by {ny} grid', rp_recsp:', {s} recommended spacing', rp_lowest:'Lowest speed meeting {t}% coverage', rp_total:', {w} W total', rp_below:'Blade height below deck',
+rp_others:'Other options considered', rp_other_li:'{n} × {m}: {c}% coverage at full speed', rp_other_w:', {w} W at {s}% speed',
+rp_foot1:'Airflow and power for ECO, Titan and XP (8 to 14 ft) are from Hunter\'s March 2024 AMCA certified performance catalogs for the stated supply; speeds between certified steps are interpolated. TRAK Edge and Jan Fan use spec-sheet airflow; DDI and XP 7 ft airflow is estimated.',
+rp_foot_w:' Power for fans without AMCA data is shown at their maximum rating, and DDI power is not published.',
+rp_foot2:' The feels-cooler effect is an estimate in the spirit of the ASHRAE 55 elevated air speed method and depends on temperature, humidity, clothing and activity. Air speeds come from a simplified airflow model, not a CFD study. Confirm the final layout against sprinkler (NFPA 13), lighting, structural and local code requirements.',
+rp_msg_print:'To save a PDF, choose Print and then Save as PDF as the destination.', preparing:'Preparing…', saved:'Report saved.', cancelled:'Download cancelled.',
+ratelimited:'A save prompt is already open. Finish it, then try again.', pdf_fail:'The PDF could not be saved here. Choose Print and then Save as PDF instead.',
+file_base:'Airflow layout', file_suffix:'-report.pdf',
+roofType:'Roof type', roof_flat:'Flat', roof_single:'Single slope', roof_gable:'Gable', roofSlope:'Slope (%)', roofAxis:'Slope direction',
+axis_W:'Across the width', axis_L:'Along the length', len_Hwall:'Wall height', len_Hlow:'Low wall height',
+roof_info:'Highest point {b} ({d}°). Fan heights follow the roof line.', range:'{a} to {b}', roof_lbl:'Ceiling {a} to {b}', ridge:'Ridge', high_side:'High side',
+secDir:'Section direction', cut_x:'Along the length', cut_y:'Across the width', rp_roof:'Roof type', rp_roof_val:'{type}, {p}% slope ({d}°)'
+},
+es:{
+appTitle:'Simulador de flujo de aire Hunter Industrial',
+appSub:'Ingresa los datos de la nave y obtén el ventilador Hunter adecuado; luego observa cómo se mueve el aire, dónde lo sienten las personas y dónde lo bloquean los racks.',
+legFacility:'Instalación', startFrom:'Partir de', pr_none:'Elige un tipo de instalación (opcional)…', pr_warehouse:'Centro de distribución', pr_plant:'Planta de manufactura',
+pr_gym:'Gimnasio', pr_hangar:'Hangar de aviones', pr_barn:'Establo lechero', pr_shop:'Tienda o showroom pequeño', pr_empty:'Nave vacía',
+units:'Unidades', unit_m:'Metros / m/s', unit_ft:'Pies / FPM', len_L:'Largo', len_W:'Ancho', len_H:'Techo', len2_L:'Largo', len2_D:'Fondo', len2_H:'Altura',
+legSite:'Requisitos del sitio', powerLbl:'Alimentación eléctrica disponible', pw_any:'Cualquiera', pw_120:'100–120 V monofásica', pw_240:'200–240 V monofásica',
+pw_3240:'200–240 V trifásica', pw_3480:'380–480 V trifásica', wetLbl:'Ubicación mojada (expuesta a lluvia o lavado a presión)',
+run:'Ejecutar simulación', running:'Ejecutando…', legFans:'Ventiladores', fanLocked:'Los ventiladores se eligen automáticamente al ejecutar la simulación. Después puedes ajustarlos aquí.',
+addFan:'Agregar ventilador', addJan:'Agregar Jan Fan', autoLayout:'Redistribuir este modelo', model:'Modelo', speed:'Velocidad', aim:'Dirección', mode:'Modo',
+fwd:'Directo (enfriamiento)', rev:'Reversa (desestratificación)', delFan:'Quitar ventilador', legRack:'Racks y equipo', addRack:'Agregar fila de racks', addMachine:'Agregar equipo',
+rot:'Girar 90°', dup:'Duplicar', del:'Quitar', legAnalysis:'Análisis', measureAt:'Medir a', z_floor:'Piso', z_waist:'Cintura', z_head:'Cabeza',
+sectionCut:'Corte de sección', showHeat:'Mapa de calor de velocidad del aire', showFlow:'Flujo de aire animado',
+sideNote:'El flujo de aire y la potencia de ECO, Titan y XP (8 a 14 ft) provienen de los catálogos de desempeño certificados AMCA de Hunter de marzo de 2024, para la alimentación seleccionada (380–480 V 3Φ cuando se elige Cualquiera); las velocidades entre los pasos certificados de 20% se interpolan. TRAK Edge y Jan Fan usan el CFM de su ficha técnica. DDI y XP 7 ft no tienen datos AMCA, por lo que su flujo se estima a partir de su área de influencia publicada y se corrige con los resultados AMCA del diámetro más cercano. La separación del DDI se deriva del diámetro de su área de influencia. Es una aproximación visual rápida, no un estudio CFD; confirma la distribución final con los requisitos de rociadores (NFPA 13), iluminación, estructura y normativa local.',
+recsTitle:'Ventiladores recomendados para esta nave', staleTxt:'Los datos cambiaron desde la última ejecución. Estos resultados ya no están actualizados.', rerun:'Ejecutar de nuevo',
+emptyState:'Aún no hay simulación. Ingresa las dimensiones de la nave a la izquierda, agrega racks o equipo si los hay y presiona Ejecutar simulación. La herramienta elegirá el mejor ventilador Hunter y lo distribuirá.',
+st_cool:'Sensación de enfriamiento promedio', st_avg:'Velocidad del aire promedio', st_area:'Área de piso por ventilador', st_cov:'Piso libre con brisa ({v} o más)',
+st_cfm:'Flujo de aire total', st_cfm_est:' (incluye estimaciones)', st_pow:'Potencia a las velocidades actuales', st_pow_max:'{list} a potencia máxima', st_pow_na:'{list} sin dato publicado',
+reportBtn:'Crear reporte de una página', floorPlan:'Planta', still:'Aire quieto', planAria:'Planta con velocidad del aire. Arrastra ventiladores o racks para moverlos; haz doble clic para agregar un ventilador.',
+hint:'Arrastra ventiladores o racks para moverlos · Doble clic en piso libre para agregar un ventilador', secTitle:'Corte de la nave', secAria:'Corte lateral que muestra la columna de aire y el chorro sobre el piso',
+secNote:'La línea punteada en la planta muestra dónde se toma este corte.', secStretch:' La altura está ampliada {x}× para que la columna de aire se aprecie mejor.',
+repAria:'Reporte de distribución', projName:'Nombre del proyecto', projPh:'Por ejemplo: Centro de distribución Monterrey', preparedBy:'Elaborado por', byPh:'Tu nombre',
+pdf:'Descargar PDF', print:'Imprimir', close:'Cerrar',
+msg_enter:'Ingresa el largo, ancho y altura de techo de la nave para comenzar.', msg_low:'Los techos de menos de {h} son demasiado bajos para cualquier ventilador de techo Hunter.',
+msg_stale:'Los datos cambiaron. Ejecuta de nuevo para actualizar la selección.', msg_running:'La simulación está activa. Puedes cambiar los datos y ejecutar de nuevo cuando quieras.',
+msg_ready:'Listo. Si la nave tiene racks o equipo, agrégalos primero.', msg_checking:'Revisando cada modelo, tamaño y velocidad con los datos AMCA…',
+msg_needSize:'Ingresa las dimensiones de la nave antes de agregar racks o equipo.',
+rec_none:'Ningún ventilador de techo Hunter cumple estas condiciones. Revisa la altura del techo (HVLS necesita cerca de {hv} y TRAK Edge cerca de {tr}), la alimentación disponible o desactiva ubicación mojada.',
+rec_ok:'{p} de {c} tamaños de modelo cubren al menos el {t}% del piso libre. Ordenados por menos ventiladores y luego menor potencia de operación.',
+rec_bad:'Ningún tamaño alcanza {t}% de cobertura aquí; estas son las opciones más cercanas. Los racks o un techo muy alto pueden estar limitando el alcance.',
+rank_best:'Mejor opción', rank_closest:'Opción más cercana', rank_alt:'Alternativa', rec_lay:'Cuadrícula de {nx} por {ny}, aspas a {z} ({d} bajo la cubierta)',
+rec_cov:'Piso libre con brisa, velocidad máxima', rec_min:'Velocidad mínima que cumple la meta', full_speed:'Velocidad máxima', rec_opw:'Potencia a esa velocidad, todos los ventiladores',
+max_tag:' (máx.)', not_listed:'No publicado', rec_fullw:'Potencia a velocidad máxima, todos los ventiladores', rec_cfm:'Flujo de aire total, velocidad máxima', airflow_data:'Datos de flujo de aire',
+src_amca:'Certificado AMCA', src_published:'Ficha técnica', src_estimated:'Estimado', rated_supply:'Alimentación nominal', spacing:'Separación', derived:' (derivada)',
+tag_fewest:'Menos ventiladores', tag_lowpow:'Menor potencia', tag_cov:'Mayor cobertura', tag_short:'Debajo de la meta de cobertura', in_use:'Mostrando esta distribución', use_layout:'Usar esta distribución',
+plan_e1:'Ingresa las dimensiones de la nave para comenzar', plan_e2:'Largo, ancho y altura de techo están a la izquierda', plan_press:'Presiona Ejecutar simulación para elegir ventiladores y ver el flujo de aire',
+sec_empty:'El corte lateral aparece al ingresar las dimensiones de la nave', ceil_lbl:'Techo de {h}',
+fans_empty:'Aún no hay ventiladores. Usa una recomendación, agrega uno o haz doble clic en la planta.', obs_empty:'Piso libre. Agrega racks o equipo para ver cómo bloquean el flujo de aire.',
+chip_fan:'Ventilador', chip_jan:'Jan', rack:'Rack', equip:'Equipo', fan_title:'Ventilador {id}', jan_title:'Jan Fan {id}',
+obj_rack:'el rack', obj_equip:'el equipo', obj2_rack:'del rack', obj2_equip:'del equipo',
+w_clear:'Las aspas quedan a menos de {h} del piso.', w_over:'El ventilador está sobre {what} {id}, así que su columna de aire queda bloqueada. Muévelo sobre un pasillo.',
+w_near:'Las aspas están a menos de {d} {what} {id}.', w_fight:'El ventilador {id} está a menos de unos dos diámetros, así que los ventiladores competirán entre sí.',
+w_wet:'{name} está clasificado para lugares húmedos, no mojados.', w_power:'{name} no funciona con la alimentación seleccionada.',
+r_airflow:'Flujo de aire', r_spd_hl:'Velocidad (alta / baja)', r_sound:'Sonido', r_motor:'Motor', r_supply:'Alimentación nominal', r_at:'Al {p}% de velocidad', interp:' (interpolado)',
+r_power:'Potencia', r_standby:'Potencia en espera', r_cfei:'CFEI al 100% / 40%', r_maxspd:'Velocidad máxima', r_air_at:'Flujo de aire a esta velocidad', src_sheet:'(ficha técnica)',
+src_est:'(estimado con datos AMCA de {ref})', r_maxpow:'Potencia máxima', r_spacing_d:'Separación (derivada)', r_spacing:'Separación recomendada', r_area:'Área máxima de influencia',
+r_weight:'Peso colgado', r_soundmax:'Sonido a velocidad máxima', high:'Alta', low:'Baja', of:'{a} de {b}', mount_circ:'Altura de montaje', mount_blade:'Altura de aspas sobre el piso',
+below_deck:'{a}, {b} bajo la cubierta',
+line_ECO:'HVLS, 4 aspas, VFD', line_TITAN:'HVLS, 5 aspas, VFD', line_DDI:'HVLS, transmisión directa', line_XP:'HVLS, 120 V, VFD', line_TRAK:'Comercial DC, para lugares mojados', line_JAN:'Circulador de aire direccional',
+rp_brand:'Hunter Industrial Fans', rp_title:'Reporte de distribución de flujo de aire', rp_untitled:'Proyecto sin nombre', rp_by:'Elaborado por {n}', rp_pow:'Potencia a las velocidades fijadas', see_notes:' (ver notas)',
+rp_area:'Área de piso por ventilador de techo', na:'n/d', rp_plan_cap:'Planta: velocidad del aire a {z}. Los círculos numerados son ventiladores, los bloques grises son racks o equipo y la línea punteada marca el corte de abajo.',
+rp_sec_cap:'Corte de la nave que muestra la columna de aire de cada ventilador y el chorro que genera sobre el piso.', rp_building:'Nave', rp_size:'Dimensiones de piso',
+rp_ceiling:'Altura de techo', rp_floorarea:'Área de piso', rp_racks:'Racks y equipo', rp_items:'{n} elementos, {a}', none:'Ninguno', rp_power:'Alimentación en el ventilador',
+not_spec:'No especificada', rp_wet:'Ubicación mojada', yes:'Sí', no:'No', rp_measured:'Resultados medidos a', ztxt:'altura de {name}, {h}', custom:'personalizada',
+rp_speedfloor:'Velocidad del aire en el piso libre', band_under:'Menos de {v}', band_range:'{a} a {b}', band_over:'Más de {v}', rp_fansel:'Selección de ventiladores',
+th_model:'Modelo', th_qty:'Cant.', th_speed:'Velocidad', th_height:'Altura de aspas', th_cfm:'Flujo por equipo', th_w:'Potencia por equipo', reverse:' (reversa)', rp_layout:'Distribución',
+rp_grid:'Cuadrícula de {nx} por {ny}', rp_recsp:', separación recomendada de {s}', rp_lowest:'Velocidad mínima para {t}% de cobertura', rp_total:', {w} W en total', rp_below:'Distancia de aspas bajo la cubierta',
+rp_others:'Otras opciones consideradas', rp_other_li:'{n} × {m}: {c}% de cobertura a velocidad máxima', rp_other_w:', {w} W al {s}% de velocidad',
+rp_foot1:'El flujo de aire y la potencia de ECO, Titan y XP (8 a 14 ft) provienen de los catálogos de desempeño certificados AMCA de Hunter de marzo de 2024 para la alimentación indicada; las velocidades entre pasos certificados se interpolan. TRAK Edge y Jan Fan usan el flujo de su ficha técnica; el flujo de DDI y XP 7 ft es estimado.',
+rp_foot_w:' La potencia de los ventiladores sin datos AMCA se muestra a su valor máximo, y la potencia del DDI no está publicada.',
+rp_foot2:' La sensación de enfriamiento es una estimación basada en el método de velocidad de aire elevada de ASHRAE 55 y depende de la temperatura, humedad, vestimenta y actividad. Las velocidades del aire provienen de un modelo simplificado, no de un estudio CFD. Confirma la distribución final con los requisitos de rociadores (NFPA 13), iluminación, estructura y normativa local.',
+rp_msg_print:'Para guardar un PDF, elige Imprimir y luego Guardar como PDF como destino.', preparing:'Preparando…', saved:'Reporte guardado.', cancelled:'Descarga cancelada.',
+ratelimited:'Ya hay una ventana de guardado abierta. Termínala y vuelve a intentar.', pdf_fail:'No se pudo guardar el PDF aquí. Elige Imprimir y luego Guardar como PDF.',
+file_base:'Distribucion de flujo de aire', file_suffix:'-reporte.pdf',
+roofType:'Tipo de techo', roof_flat:'Plano', roof_single:'Una agua', roof_gable:'Dos aguas', roofSlope:'Pendiente (%)', roofAxis:'Dirección de la pendiente',
+axis_W:'A lo ancho', axis_L:'A lo largo', len_Hwall:'Altura en muro', len_Hlow:'Altura en muro bajo',
+roof_info:'Punto más alto {b} ({d}°). La altura de los ventiladores sigue la línea del techo.', range:'{a} a {b}', roof_lbl:'Techo de {a} a {b}', ridge:'Cumbrera', high_side:'Lado alto',
+secDir:'Dirección del corte', cut_x:'A lo largo', cut_y:'A lo ancho', rp_roof:'Tipo de techo', rp_roof_val:'{type}, pendiente {p}% ({d}°)'
+}};
+function t(k,v){ let s=I18N[LANG][k]; if(s==null) s=I18N.en[k]; if(s==null) s=k;
+  return v?s.replace(/\{(\w+)\}/g,(_,a)=>v[a]!=null?v[a]:''):s; }
+const LOC=()=>LANG==='es'?'es-MX':'en-US';
+
+const FT=0.3048, IN=0.0254, CFM2M3S=0.000471947, MS2FPM=196.85;
+const BREEZE=50/MS2FPM;      // "noticeable breeze" threshold (50 FPM)
+const COV_TARGET=0.85;       // recommender aims for 85% of open floor above BREEZE
+const EDGE_V=0.3;            // calibration: speed at edge of published affected area (≈60 FPM)
+
+/* ---------- Hunter Industrial product data (from spec sheets) ---------- */
+const PWR_HV=['240','3240','3480'];
+const FAM={
+  ECO:  {name:'ECO', kind:'hvls', blades:4, minDrop:32.8*IN, maxDrop:(32.8+90)*IN, minClear:10*FT, steps:10, power:PWR_HV, wet:false, line:'HVLS, 4 airfoils, VFD'},
+  TITAN:{name:'Titan', kind:'hvls', blades:5, minDrop:32.8*IN, maxDrop:(32.8+90)*IN, minClear:10*FT, steps:10, power:PWR_HV, wet:false, line:'HVLS, 5 airfoils, VFD'},
+  DDI:  {name:'DDI', kind:'hvls', blades:4, minDrop:32.8*IN, maxDrop:(32.8+90)*IN, minClear:10*FT, steps:0, power:PWR_HV, wet:false, line:'HVLS, direct drive'},
+  XP:   {name:'XP', kind:'hvls', blades:4, minDrop:24*IN, maxDrop:48*IN, minClear:10*FT, steps:10, power:['120'], wet:false, line:'HVLS, 120V, VFD'},
+  TRAK: {name:'TRAK Edge', kind:'ceiling', blades:4, minDrop:25.8*IN, maxDrop:(25.8+48)*IN, minClear:7*FT, steps:8, power:['120','240'], wet:true, line:'Commercial DC, wet rated'},
+  JAN:  {name:'Jan Fan', kind:'circ', steps:2, power:['120','240'], wet:false, line:'Directional air circulator'},
+};
+const MODELS=[];
+function add(fam,size,unit,d){ const dia=unit==='in'?size*IN:size*FT;
+  MODELS.push(Object.assign({id:fam+'-'+size, fam, size, unit, dia, label:`${FAM[fam].name} ${size}${unit==='in'?'″':' ft'}`},d)); }
+[[5,194,20,400,11437,68,48,'51'],[6,161,24,576,16540,73,48.5,'47'],[7,143,28,784,18391,74,49,'54'],[8,143,30,1024,24466,102,49.5,'54']]
+  .forEach(([s,rpm,sp,a,cfm,w,lb,db])=>add('TRAK',s,'ft',{rpm,spacing:sp,area:a,cfm,w,lb,dba:db}));
+[[7,138,32,1225,227,100],[8,156,32,1600,474,104],[10,139,40,2500,821,108],[12,106,48,3600,786,117],[14,108,56,4900,723,121]]
+  .forEach(([s,rpm,sp,a,w,lb])=>add('XP',s,'ft',{rpm,spacing:sp,area:a,w,lb,dba:'<55'}));
+[[8,156,32,1600,486,87],[10,139,40,2500,749,94],[12,108,48,3600,777,101],[14,108,56,4900,713,128],[16,94,64,6400,1013,135],[18,80,72,8100,849,138],[20,77,80,10000,920,145],[24,62,96,14400,1124,159]]
+  .forEach(([s,rpm,sp,a,w,lb])=>add('ECO',s,'ft',{rpm,spacing:sp,area:a,w,lb,dba:'<55'}));
+[[14,103,70,7744,715,168],[16,95,80,10000,1013,175],[18,93,90,12769,1472,183],[20,73,100,15625,1020,190],[24,64,120,22500,1219,204]]
+  .forEach(([s,rpm,sp,a,w,lb])=>add('TITAN',s,'ft',{rpm,spacing:sp,area:a,w,lb,dba:'<55'}));
+[[20,71,11000,105,141],[24,51,13000,115,150]]
+  .forEach(([s,rpm,a,ad,lb])=>add('DDI',s,'ft',{rpm,area:a,affDia:ad,spacing:Math.round(ad*0.8),spacingDerived:true,w:null,lb}));
+[[20,2818,'60.2'],[24,3935,'64'],[30,5179,'70.9']]
+  .forEach(([s,cfm,db])=>add('JAN',s,'in',{cfm,rpm:'1100 / 900',dba:db,hp:'1/4 HP',w:null}));
+const MB=Object.fromEntries(MODELS.map(m=>[m.id,m]));
+/* ---------- AMCA certified performance (Hunter catalogs, March 2024) ----------
+   Per size and supply: standby W, CFEI at 100% and 40%, and rows at 100/80/60/40/20% speed: [RPM, W, CFM]. */
+const AMCA={};
+function amca(id,sup,sb,c100,c40,rows){ (AMCA[id]=AMCA[id]||{})[sup]={sb,cfei:[c100,c40],pts:rows.map((r,i)=>({pct:[100,80,60,40,20][i],rpm:r[0],w:r[1],cfm:r[2]}))}; }
+amca('ECO-24','3480',15.3,1.12,1.61,[[62,1124,203167],[50,579,162771],[38,296,122762],[25,153,82620],[13,98,43554]]);
+amca('ECO-24','3240',12.2,1.14,1.65,[[62,1027,196793],[50,510,158016],[38,258,118188],[25,136,76469],[13,89,41558]]);
+amca('ECO-24','240',12.2,1.12,1.77,[[62,1047,197067],[50,516,158026],[38,260,119587],[25,135,80329],[13,83,34745]]);
+amca('ECO-20','3480',15.1,1.26,1.49,[[77,920,154266],[63,496,123615],[47,251,92093],[32,147,61256],[16,98,32533]]);
+amca('ECO-20','3240',12.1,1.29,1.61,[[77,843,150402],[62,440,121029],[47,254,91172],[31,134,61020],[16,87,30290]]);
+amca('ECO-20','240',12.2,1.24,1.66,[[77,854,148341],[62,438,118427],[47,244,89041],[32,123,58123],[16,82,29801]]);
+amca('ECO-18','3480',15.2,1.26,1.51,[[80,849,129603],[63,459,103519],[48,234,76735],[32,134,51025],[17,94,25999]]);
+amca('ECO-18','3240',12.2,1.29,1.57,[[79,772,125485],[63,415,100590],[48,241,75857],[32,128,50684],[17,85,26171]]);
+amca('ECO-18','240',12.2,1.23,1.50,[[79,814,125819],[63,427,101273],[48,243,75422],[32,134,50624],[16,83,25848]]);
+amca('ECO-16','3480',15.3,1.11,1.51,[[94,1002,112124],[76,514,90730],[57,249,67167],[38,136,44696],[19,91,22576]]);
+amca('ECO-16','3240',12.2,1.20,1.62,[[93,923,111791],[76,527,90081],[57,256,67755],[38,128,44950],[19,93,22576]]);
+amca('ECO-16','240',12.0,1.07,1.59,[[94,1013,111095],[76,464,88533],[57,265,66893],[38,126,44034],[19,87,21795]]);
+amca('ECO-14','3480',15.0,1.29,1.62,[[108,713,85752],[87,390,68394],[65,202,51322],[44,115,34837],[22,80,18219]]);
+amca('ECO-14','3240',12.2,1.38,1.62,[[108,669,85988],[87,369,68797],[65,204,51323],[44,112,34019],[22,79,16892]]);
+amca('ECO-14','240',12.2,1.38,1.67,[[108,682,86673],[87,368,69233],[65,208,52181],[44,112,34974],[22,78,17391]]);
+amca('ECO-12','3480',15.2,1.15,1.46,[[108,777,68257],[86,444,54584],[65,225,40171],[44,122,27206],[22,81,13843]]);
+amca('ECO-12','3240',12.3,1.29,1.40,[[104,687,67911],[85,419,54918],[64,247,40938],[43,125,26950],[22,80,13227]]);
+amca('ECO-12','240',12.2,1.26,1.47,[[105,715,68544],[86,421,54592],[64,233,40694],[44,117,26557],[22,79,13599]]);
+amca('ECO-10','3480',15.3,1.30,1.52,[[132,706,53060],[111,441,44095],[84,237,33133],[56,127,22389],[28,85,11784]]);
+amca('ECO-10','3240',12.3,1.35,1.46,[[138,748,55374],[111,396,44058],[84,238,32692],[56,125,21373],[28,81,11099]]);
+amca('ECO-10','240',12.2,1.34,1.51,[[139,749,55119],[112,396,43875],[84,230,32756],[56,123,21652],[28,81,11294]]);
+amca('ECO-8','3480',15.2,1.50,1.75,[[156,486,34217],[125,304,27419],[94,173,19889],[63,94,14064],[32,69,7677]]);
+amca('ECO-8','3240',12.1,1.43,1.50,[[135,371,29212],[125,294,26869],[94,191,19137],[63,104,13339],[31,77,6499]]);
+amca('ECO-8','240',12.1,1.54,1.56,[[131,327,28484],[125,296,27195],[94,178,20694],[63,103,13758],[31,75,7234]]);
+amca('XP-14','120',13.3,1.26,2.17,[[108,723,85466],[87,370,68616],[65,180,51507],[44,85,34556],[22,53,17431]]);
+amca('XP-12','120',13.2,1.15,1.87,[[106,786,68675],[85,397,54317],[64,198,39829],[43,92,26451],[22,54,13345]]);
+amca('XP-10','120',13.3,1.22,1.87,[[139,821,55106],[111,410,43650],[84,196,32831],[56,101,21958],[28,56,10928]]);
+amca('XP-8','120',13.2,1.53,2.07,[[156,474,34131],[125,267,27489],[94,147,20608],[63,79,13944],[32,52,7262]]);
+amca('TITAN-24','3480',15.2,1.34,1.69,[[59,932,202735],[56,938,194450],[43,447,146394],[29,184,97600],[15,106,50490]]);
+amca('TITAN-24','3240',12.3,1.16,1.77,[[64,1219,213878],[56,795,186051],[43,335,137212],[29,155,89597],[15,80,44588]]);
+amca('TITAN-24','240',12.3,1.23,1.81,[[63,1079,208398],[56,818,185717],[43,344,139009],[29,154,90650],[15,78,44954]]);
+amca('TITAN-20','3480',15.2,1.41,1.52,[[68,842,155756],[59,611,136799],[45,322,102872],[30,169,69314],[16,102,35864]]);
+amca('TITAN-20','3240',12.3,1.31,1.70,[[73,1020,163909],[59,540,131917],[45,276,96848],[30,142,66115],[16,78,31309]]);
+amca('TITAN-20','240',12.2,1.32,1.79,[[72,945,159393],[59,550,132618],[45,281,98224],[30,130,64627],[16,74,32111]]);
+amca('TITAN-18','3480',15.3,1.34,1.51,[[81,1013,143471],[75,841,134710],[57,397,101106],[38,198,67364],[19,114,34333]]);
+amca('TITAN-18','3240',11.3,1.31,1.85,[[85,1055,144426],[76,754,129325],[57,337,96627],[38,147,63449],[19,70,30828]]);
+amca('TITAN-18','240',12.1,1.21,1.88,[[93,1472,160488],[76,770,129993],[57,338,96939],[38,147,64172],[19,71,31386]]);
+amca('TITAN-16','3480',15.2,1.38,1.45,[[92,982,122192],[83,825,110918],[62,400,83425],[42,194,55808],[21,112,27931]]);
+amca('TITAN-16','3240',12.3,1.37,1.87,[[95,1013,123114],[83,701,106010],[62,316,78452],[42,136,52237],[21,69,24160]]);
+amca('TITAN-16','240',12.2,1.37,1.79,[[92,941,119509],[83,714,106259],[62,317,78793],[42,138,51180],[21,68,22288]]);
+amca('TITAN-14','3480',15.2,1.45,1.53,[[103,715,90486],[83,405,72569],[62,222,53582],[42,127,36110],[21,92,18530]]);
+amca('TITAN-14','3240',12.2,1.50,1.85,[[103,649,88053],[82,374,70188],[62,196,52694],[42,101,34987],[21,65,18005]]);
+amca('TITAN-14','240',12.2,1.51,1.89,[[103,662,88971],[83,378,70763],[62,196,52837],[42,101,35540],[21,64,18308]]);
+const SUP={'3480':'380–480V 3Φ','3240':'200–240V 3Φ','240':'200–240V 1Φ','120':'100–120V 1Φ'};
+function supplyFor(m){ const a=AMCA[m.id]; if(!a) return null;
+  if(S.power!=='any'&&a[S.power]) return S.power; return ['3480','3240','240','120'].find(k=>a[k]); }
+// Performance at a speed fraction. AMCA rows are interpolated between the
+// certified 20% steps (and from standby at 0%); other models scale linearly.
+function perf(m,speed){
+  const a=AMCA[m.id];
+  if(a){ const sup=supplyFor(m), d=a[sup], pct=speed*100;
+    const pts=[{pct:0,rpm:0,w:d.sb,cfm:0},...d.pts.slice().reverse()];
+    let i=1; while(i<pts.length-1&&pts[i].pct<pct-1e-9) i++;
+    const A=pts[i-1],B=pts[i],t=Math.min(1,Math.max(0,(pct-A.pct)/(B.pct-A.pct))), L=k=>A[k]+(B[k]-A[k])*t;
+    return {cfm:L('cfm'), w:L('w'), rpm:L('rpm'), src:'amca', sup, d, certified:d.pts.some(p=>Math.abs(p.pct-pct)<1e-6)};
+  }
+  return {cfm:m.cfmModel*speed, w:m.w??null, wMax:m.w!=null, rpm:typeof m.rpm==='number'?m.rpm*speed:null, src:m.cfmSrc};
+}
+function fanCfm(f){
+  if(f._fixedCfm) return f._fixedCfm;
+  const k=f.model+'|'+f.speed+'|'+S.power;
+  if(f._k!==k){ f._k=k; f._p=perf(MB[f.model],f.speed); }
+  return f._p.cfm;
+}
+
+
+const S={secAxis:'x', roof:{type:'flat',slope:0,axis:'W'}, units:'m', L:null, W:null, H:null, ran:false, stale:false, fans:[], obs:[], sel:{kind:'fan',i:0},
+  zA:1.1, slice:.5, showHeat:true, showFlow:true, dirty:false, power:'any', wet:false, recs:[]};
+let fanSeq=1, obsSeq=1;
+
+/* ---------- Roof geometry ----------
+   S.H is the height at the walls (the low wall for a single slope). The slope
+   rises across the width (axis W) or along the length (axis L). */
+function roofSpan(){ return S.roof.axis==='W'?S.W:S.L; }
+function sloped(){ return S.roof.type!=='flat'&&S.roof.slope>0&&S.L>0&&S.W>0; }
+function ceilAt(x,y){ if(!sloped()) return S.H;
+  const u=S.roof.axis==='W'?y:x, sp=roofSpan();
+  return S.roof.type==='single'?S.H+S.roof.slope*u:S.H+S.roof.slope*(sp/2-Math.abs(u-sp/2)); }
+function Hmax(){ return sloped()?S.H+S.roof.slope*roofSpan()*(S.roof.type==='single'?1:0.5):S.H; }
+function roofDeg(){ return Math.atan(S.roof.slope)*180/Math.PI; }
+/* Section cut: 'x' runs along the length at a fixed y; 'y' runs across the width at a fixed x. */
+const secLen=()=>S.secAxis==='x'?S.L:S.W;
+const secC=()=>S.slice*(S.secAxis==='x'?S.W:S.L);
+const secPt=a=>S.secAxis==='x'?[a,secC()]:[secC(),a];
+const secAlong=o=>S.secAxis==='x'?o.x:o.y;
+const secOff=o=>Math.abs((S.secAxis==='x'?o.y:o.x)-secC());
+const secH=v=>S.secAxis==='x'?v[0]:v[1];
+const sliceFrom=o=>Math.min(1,Math.max(0,S.secAxis==='x'?o.y/S.W:o.x/S.L));
+const autoSecAxis=()=>{ if(sloped()) S.secAxis=S.roof.axis==='W'?'y':'x'; };
+function famOf(f){ return FAM[MB[f.model].fam]; }
+function zRange(m,x,y){ const F=FAM[m.fam], Hc=x==null?S.H:ceilAt(x,y);
+  if(F.kind==='circ') return [0.6, Math.max(0.7,Math.min(Hc-0.3,6))];
+  return [Math.max(0.5,Hc-F.maxDrop), Hc-F.minDrop]; }
+function defaultZ(m,x,y){ const F=FAM[m.fam], [lo,hi]=zRange(m,x,y);
+  if(F.kind==='circ') return Math.min(hi,1.8);
+  const target = F.kind==='hvls' ? 12*FT+m.dia : 10*FT;
+  return Math.min(hi,Math.max(lo,Math.max(target,F.minClear)));
+}
+function makeFan(modelId,x,y,z){
+  const m=MB[modelId];
+  return {id:fanSeq++, model:m.id, speed:1, x, y, z:z??defaultZ(m,x,y), dir:'down', aim:0, ang:Math.random()*6};
+}
+function makeObs(kind,x,y,l,d,h){ return {id:obsSeq++, kind, x, y, l, d, h}; }
+
+/* ---------- Geometry ---------- */
+function rectOf(o){ return [o.x-o.l/2,o.y-o.d/2,o.x+o.l/2,o.y+o.d/2]; }
+function inside(o,x,y,m=0){ const r=rectOf(o); return x>r[0]-m&&x<r[2]+m&&y>r[1]-m&&y<r[3]+m; }
+function segHits(o,x0,y0,x1,y1){
+  const r=rectOf(o); let t0=0,t1=1; const dx=x1-x0, dy=y1-y0;
+  const p=[-dx,dx,-dy,dy], q=[x0-r[0],r[2]-x0,y0-r[1],r[3]-y0];
+  for(let i=0;i<4;i++){
+    if(Math.abs(p[i])<1e-9){ if(q[i]<0) return false; }
+    else { const t=q[i]/p[i]; if(p[i]<0){ if(t>t1) return false; if(t>t0) t0=t; } else { if(t<t0) return false; if(t<t1) t1=t; } }
+  }
+  return t0<1&&t1>0;
+}
+
+/* ---------- Airflow model ---------- */
+function applyWalls(x,y,v){
+  const zone=2.0, walls=[[x,-1,0],[S.L-x,1,0],[y,0,-1],[S.W-y,0,1]];
+  for(const [dw,nx,ny] of walls){ if(dw<zone){ const into=v[0]*nx+v[1]*ny;
+    if(into>0){ const k=into*(1-Math.max(dw,0)/zone); v[0]-=k*nx; v[1]-=k*ny; v[2]+=k*0.85; } } }
+}
+// Ceiling-mounted fan: descending column → deep radial floor jet → rises at walls.
+function ceilField(f,m,x,y,z,out,env){
+  const Q=fanCfm(f)*CFM2M3S, R=m.dia/2, h=f.z, U0=Q/(Math.PI*R*R);
+  const dx=x-f.x, dy=y-f.y, rho=Math.hypot(dx,dy)+1e-6;
+  let ur=0, w=0;
+  if(z<=h){
+    const d=h-z, b=R+0.15*d, Uc=U0*Math.pow(R/b,1.4);
+    const prof=Math.exp(-Math.pow(rho/b,2)*1.5)*(1-0.5*Math.exp(-Math.pow(rho/(0.3*R),2))*Math.exp(-d/2));
+    w=-Uc*prof*(1-Math.exp(-z/(0.18*h+0.3)));
+    const bF=R+0.15*h, UcF=U0*Math.pow(R/bF,1.4);
+    const g=rho<bF?rho/bF:Math.pow(bF/rho,0.72);
+    const delta=0.3*R+0.4+0.035*rho;
+    ur=UcF*g*Math.exp(-Math.pow(z/delta,1.3));
+    ur-=0.04*U0*Math.exp(-Math.pow((rho-b*1.5)/(b+1),2))*Math.exp(-Math.pow((z-h*0.6)/(h*0.35),2));
+    if(env) for(const o of S.obs){ if(o.h>z&&rho>bF*0.6&&segHits(o,f.x,f.y,x,y)){ ur*=1-0.85*Math.min(1,o.h-z); break; } }
+  } else {
+    const d=z-h, s=R*R/(R*R+d*d+rho*rho); w=-0.3*U0*s; ur=-0.2*U0*s*rho/(R+rho);
+  }
+  const v=[ur*dx/rho, ur*dy/rho, w];
+  if(env){ applyWalls(x,y,v); const dc=ceilAt(x,y)-z;
+    if(dc<1.5&&v[2]>0){ const k=v[2]*(1-dc/1.5); v[2]-=k; v[0]-=k*.5*dx/rho; v[1]-=k*.5*dy/rho; } }
+  const sc=f.dir==='up'?-.32:1;
+  out[0]=v[0]*sc; out[1]=v[1]*sc; out[2]=v[2]*sc;
+}
+// Directional circulator: horizontal round jet along the aim direction.
+function janField(f,m,x,y,z,out,env){
+  const Q=fanCfm(f)*CFM2M3S, R=m.dia/2, U0=Q/(Math.PI*R*R);
+  const c=Math.cos(f.aim), s=Math.sin(f.aim), dx=x-f.x, dy=y-f.y, dz=z-f.z;
+  const ax=dx*c+dy*s, lat=-dx*s+dy*c; const v=[0,0,0];
+  if(ax>-R*0.3){
+    const a=Math.max(ax,0), b=R+0.12*a, Uc=Math.min(U0,U0*7*R/(a+2*R));
+    let u=Uc*Math.exp(-(lat*lat+dz*dz)/(b*b));
+    if(env) for(const o of S.obs){ if(o.h>z&&segHits(o,f.x,f.y,x,y)){ u*=0.15; break; } }
+    const sp=0.08*lat/b; v[0]=u*(c-sp*s); v[1]=u*(s+sp*c);
+  } else { const d=Math.hypot(dx,dy,dz)+R, k=0.2*U0*R*R/(d*d); v[0]=-dx/d*k; v[1]=-dy/d*k; v[2]=-dz/d*k; }
+  if(env) applyWalls(x,y,v);
+  out[0]=v[0]; out[1]=v[1]; out[2]=v[2];
+}
+function field(f,x,y,z,out,env){ const m=MB[f.model]; (FAM[m.fam].kind==='circ'?janField:ceilField)(f,m,x,y,z,out,env); }
+
+// Combined velocity. Direction = vector sum; felt speed keeps most of the
+// energy where jets collide (they turn and churn rather than cancel).
+const _v=[0,0,0,0], _t=[0,0,0];
+function vel(x,y,z,fans){
+  fans=fans||S.fans; _v[0]=_v[1]=_v[2]=_v[3]=0;
+  for(const o of S.obs) if(o.h>z&&inside(o,x,y)) return _v;
+  let s2=0;
+  for(const f of fans){ field(f,x,y,z,_t,true); _v[0]+=_t[0]; _v[1]+=_t[1]; _v[2]+=_t[2]; s2+=_t[0]*_t[0]+_t[1]*_t[1]+_t[2]*_t[2]; }
+  _v[3]=Math.max(Math.hypot(_v[0],_v[1],_v[2]),0.8*Math.sqrt(s2));
+  return _v;
+}
+
+/* Airflow sources, in order of preference:
+   1. AMCA certified (ECO, Titan, XP 8–14 ft) — used directly.
+   2. Published CFM on the spec sheet (TRAK Edge, Jan Fan).
+   3. Estimated (DDI, XP 7 ft): size the airflow so the breeze reaches the edge of the
+      published affected area, then correct it by the ratio between AMCA airflow and
+      that same estimate for the nearest-diameter AMCA-rated fan. */
+function areaEstimate(m){
+  const h=Math.min(34*FT,Math.max(14*FT,12*FT+m.dia));
+  const probe={model:m.id, speed:1, x:0, y:0, z:h, dir:'down', _fixedCfm:1/CFM2M3S}, t=[0,0,0];
+  ceilField(probe,m,Math.sqrt(m.area*FT*FT)/2,0,1.1,t,false);
+  return EDGE_V/Math.hypot(t[0],t[1],t[2])/CFM2M3S;
+}
+MODELS.forEach(m=>{
+  if(AMCA[m.id]){ m.cfmModel=perf(m,1).cfm; m.cfmSrc='amca'; m._est=areaEstimate(m); }
+  else if(m.cfm){ m.cfmModel=m.cfm; m.cfmSrc='published'; }
+});
+MODELS.filter(m=>!m.cfmSrc).forEach(m=>{
+  const refs=MODELS.filter(r=>r.cfmSrc==='amca');
+  const ref=refs.reduce((a,b)=>Math.abs(b.dia-m.dia)<Math.abs(a.dia-m.dia)?b:a);
+  m.cfmModel=areaEstimate(m)*ref.cfmModel/ref._est; m.cfmSrc='estimated'; m.refLabel=ref.label;
+});
+
+/* Approximate perceived cooling (ASHRAE 55 elevated-air-speed style). m/s → °C */
+const CE=[[0,0],[0.15,0],[0.3,1.0],[0.5,2.2],[0.8,3.4],[1.2,4.6],[1.6,5.4],[2.2,6.2],[3.1,7.0]];
+function cooling(v){ for(let i=1;i<CE.length;i++){ if(v<=CE[i][0]){ const [a,ca]=CE[i-1],[b,cb]=CE[i]; return ca+(cb-ca)*(v-a)/(b-a);} } return 7; }
+
+/* ---------- Colour ---------- */
+const STOPS=[[0,[16,32,40]],[0.12,[22,70,88]],[0.3,[24,128,140]],[0.5,[96,180,140]],[0.7,[230,205,100]],[0.88,[232,140,70]],[1,[214,78,60]]];
+const VMAX=600/MS2FPM;
+function cmap(t){ t=Math.min(1,Math.max(0,t));
+  for(let i=1;i<STOPS.length;i++){ if(t<=STOPS[i][0]){ const [a,ca]=STOPS[i-1],[b,cb]=STOPS[i], k=(t-a)/(b-a);
+    return [ca[0]+(cb[0]-ca[0])*k,ca[1]+(cb[1]-ca[1])*k,ca[2]+(cb[2]-ca[2])*k]; } }
+  return STOPS[6][1]; }
+document.getElementById('scaleBar').style.background='linear-gradient(90deg,'+STOPS.map(([p,c])=>`rgb(${c.map(Math.round)}) ${p*100}%`).join(',')+')';
+
+/* ---------- Layout and recommendation ---------- */
+const rng=(a,b)=>Math.abs(a-b)<0.05?lenLabel(a):t('range',{a:lenLabel(Math.min(a,b)),b:lenLabel(Math.max(a,b))});
+function gridLayout(m,nx,ny,zFn){
+  const out=[], F=FAM[m.fam];
+  for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){
+    let x=(i+.5)*S.L/nx, y=(j+.5)*S.W/ny;
+    const blocker=S.obs.find(o=>inside(o,x,y,1));
+    if(blocker){ const r=rectOf(blocker);
+      const opts=[[x,r[1]-1.5],[x,r[3]+1.5],[r[0]-1.5,y],[r[2]+1.5,y]].filter(([a,b])=>a>0.5&&b>0.5&&a<S.L-.5&&b<S.W-.5&&!S.obs.some(o=>inside(o,a,b,1)));
+      if(!opts.length) continue;
+      opts.sort((p,q)=>Math.hypot(p[0]-x,p[1]-y)-Math.hypot(q[0]-x,q[1]-y)); [x,y]=opts[0]; }
+    const z=zFn?zFn(x,y):defaultZ(m,x,y);
+    if(F.kind!=='circ'&&z<F.minClear-1e-6) continue;   // too low under this part of the roof
+    out.push({model:m.id, speed:1, x, y, z, dir:'down', aim:0, ang:Math.random()*6});
+  }
+  return out;
+}
+function coverage(fans){
+  const gx=34, gy=Math.max(8,Math.min(40,Math.round(gx*S.W/S.L)));
+  let n=0,c=0;
+  for(let j=0;j<gy;j++) for(let i=0;i<gx;i++){
+    const x=(i+.5)/gx*S.L, y=(j+.5)/gy*S.W;
+    if(S.obs.some(o=>o.h>S.zA&&inside(o,x,y))) continue;
+    n++; if(vel(x,y,S.zA,fans)[3]>=BREEZE) c++;
+  }
+  return n?c/n:0;
+}
+// Lowest selectable speed whose layout still meets the coverage target.
+function speedSteps(F){ return F.steps===8?[1,2,3,4,5,6,7,8].map(k=>k/8):[1,2,3,4,5,6,7,8,9,10].map(k=>k/10); }
+function minSpeed(r){
+  const st=speedSteps(FAM[r.m.fam]); let lo=0, hi=st.length-1;
+  while(lo<hi){ const mid=(lo+hi)>>1; r.fans.forEach(f=>f.speed=st[mid]); if(coverage(r.fans)>=COV_TARGET) hi=mid; else lo=mid+1; }
+  r.fans.forEach(f=>f.speed=1);
+  r.opSpeed=st[hi]; const p=perf(r.m,r.opSpeed); r.op=p; r.opW=p.w!=null?p.w*r.n:null;
+}
+function evalModel(m){
+  const F=FAM[m.fam];
+  if(F.kind==='circ') return null;
+  const why=[];
+  if(S.power!=='any'&&!F.power.includes(S.power)) why.push('power');
+  if(S.wet&&!F.wet) why.push('wet');
+  if(Hmax()-F.minDrop<F.minClear) why.push('clearance');
+  if(m.dia>Math.min(S.L,S.W)/2.5) why.push('size');
+  if(why.length) return {m, ok:false, why};
+  const sp=m.spacing*FT;
+  let nx=Math.max(1,Math.ceil(S.L/sp-0.1)), ny=Math.max(1,Math.ceil(S.W/sp-0.1));
+  let best=null;
+  for(let it=0;it<4;it++){
+    if(nx*ny>60) break;
+    const fans=gridLayout(m,nx,ny); if(!fans.length){ if(S.L/nx>=S.W/ny) nx++; else ny++; continue; }
+    const cov=coverage(fans), pf=perf(m,1);
+    const zs=fans.map(f=>f.z), ds=fans.map(f=>ceilAt(f.x,f.y)-f.z);
+    const r={m, ok:cov>=COV_TARGET, nx, ny, n:fans.length, fans, zMin:Math.min(...zs), zMax:Math.max(...zs), dMin:Math.min(...ds), dMax:Math.max(...ds), cov, full:pf, fullW:pf.w!=null?pf.w*fans.length:null, cfmTot:pf.cfm*fans.length};
+    if(!best||cov>best.cov) best=r;
+    if(r.ok){ minSpeed(r); return r; }
+    if(S.L/nx>=S.W/ny) nx++; else ny++;
+  }
+  if(!best) return {m, ok:false, why:['count']};
+  best.short=true; return best;
+}
+function recommend(){
+  const all=MODELS.map(evalModel).filter(Boolean);
+  const scored=all.filter(r=>r.n);
+  const ok=scored.filter(r=>r.ok);
+  const cmp=(a,b)=>a.n-b.n || (a.opW??a.fullW??1e9)-(b.opW??b.fullW??1e9) || b.cov-a.cov;
+  let pool=ok.length?ok.sort(cmp):scored.sort((a,b)=>b.cov-a.cov);
+  const picks=[], fams=new Set();
+  for(const r of pool){ if(picks.length<3&&!fams.has(r.m.fam)){ picks.push(r); fams.add(r.m.fam); } }
+  for(const r of pool){ if(picks.length<3&&!picks.includes(r)) picks.push(r); }
+  if(picks.length>1){
+    const pw=p=>p.opW??p.fullW, minN=Math.min(...picks.map(p=>p.n)), withW=picks.filter(p=>pw(p)!=null);
+    const minW=withW.length?Math.min(...withW.map(pw)):null, maxC=Math.max(...picks.map(p=>p.cov));
+    picks.forEach(p=>{ p.tags=[]; if(p.n===minN) p.tags.push('tag_fewest'); if(minW!=null&&pw(p)===minW) p.tags.push('tag_lowpow');
+      if(p.cov===maxC) p.tags.push('tag_cov'); });
+  } else picks.forEach(p=>p.tags=[]);
+  S.recs=picks; S.recMeta={checked:all.length, passing:ok.length, anyOk:ok.length>0};
+  renderRecs();
+}
+function applyRec(r){
+  fanSeq=1; S.fans=r.fans.map(f=>Object.assign({},f,{id:fanSeq++}));
+  select('fan',0); renderRecs(); changed();
+}
+const hasRoom=()=>S.L>0&&S.W>0&&S.H>0;
+function scheduleRec(){ if(S.ran){ S.stale=true; $('stale').hidden=false; $('recGrid').classList.add('dim'); } updateRunState(); }
+function resetRun(){
+  S.ran=false; S.stale=false; S.fans=[]; S.recs=[]; S.recMeta=null; fanSeq=1; planHeat=secHeat=null;
+  $('stale').hidden=true; $('recGrid').classList.remove('dim'); $('recNote').textContent='';
+  $('recGrid').innerHTML=`<p class="empty-state">${t('emptyState')}</p>`;
+  ['sCool','sAvg','sCov','sArea','sPow','sCfm'].forEach(id=>$(id).textContent='–');
+  $('fanBody').hidden=true; $('fanLocked').hidden=false; $('reportBtn').hidden=true;
+  S.sel={kind:'obs',i:0}; renderLists(); syncObs(); updateRunState();
+}
+function updateRunState(){
+  const ok=hasRoom(); $('runBtn').disabled=!ok;
+  const m=$('runMsg'); m.className='runmsg';
+  if(!ok){ m.textContent=t('msg_enter'); return; }
+  if(Hmax()<9*FT){ m.className='runmsg bad'; m.textContent=t('msg_low',{h:lenLabel(9*FT)}); return; }
+  m.textContent=S.ran?(S.stale?t('msg_stale'):t('msg_running')):t('msg_ready');
+}
+function runSim(){
+  if(!hasRoom()) return;
+  const b=$('runBtn'); b.disabled=true; b.textContent=t('running'); $('runMsg').textContent=t('msg_checking');
+  setTimeout(()=>{ runSimNow(); b.textContent=t('run'); },30);
+}
+function runSimNow(){
+  recommend(); S.ran=true; S.stale=false;
+  $('stale').hidden=true; $('recGrid').classList.remove('dim');
+  $('fanBody').hidden=false; $('fanLocked').hidden=true;
+  pp.forEach(spawnPlan); sp.forEach(spawnSec);
+  if(S.recs[0]) applyRec(S.recs[0]); else { S.fans=[]; renderLists(); changed(); }
+  $('reportBtn').hidden=!S.fans.length;
+  updateRunState();
+}
+
+function renderRecs(){
+  if(!S.ran&&!S.recMeta) return;
+  const g=$('recGrid'); g.innerHTML='';
+  const meta=S.recMeta||{};
+  const cur=S.fans.filter(f=>famOf(f).kind!=='circ');
+  if(!S.recs.length){
+    $('recNote').textContent='';
+    g.innerHTML=`<p class="recmsg bad">${t('rec_none',{hv:lenLabel(13*FT),tr:lenLabel(9*FT)})}</p>`;
+    return;
+  }
+  $('recNote').textContent = meta.anyOk
+    ? t('rec_ok',{p:meta.passing,c:meta.checked,t:Math.round(COV_TARGET*100)})
+    : t('rec_bad',{t:Math.round(COV_TARGET*100)});
+  S.recs.forEach((r,i)=>{
+    const m=r.m, F=FAM[m.fam], d=document.createElement('article');
+    d.className='rec'+(i===0?' best':'');
+    const inUse=cur.length===r.n&&cur.every(f=>f.model===m.id);
+    d.innerHTML=`
+      <p class="rank">${i===0?(meta.anyOk?t('rank_best'):t('rank_closest')):t('rank_alt')}</p>
+      <h3>${r.n} × ${m.label}</h3>
+      <p class="lay">${t('rec_lay',{nx:r.nx,ny:r.ny,z:rng(r.zMin,r.zMax),d:rng(r.dMin,r.dMax)})}</p>
+      <dl>
+        <dt>${t('rec_cov')}</dt><dd>${Math.round(r.cov*100)}%</dd>
+        ${r.opSpeed!=null?`<dt>${t('rec_min')}</dt><dd>${r.opSpeed>=1?t('full_speed'):Math.round(r.opSpeed*100)+'%'}</dd>
+        <dt>${t('rec_opw')}</dt><dd>${r.opW!=null?Math.round(r.opW).toLocaleString(LOC())+' W'+(r.op.wMax?t('max_tag'):''):t('not_listed')}</dd>`:''}
+        <dt>${t('rec_fullw')}</dt><dd>${r.fullW!=null?Math.round(r.fullW).toLocaleString(LOC())+' W':t('not_listed')}</dd>
+        <dt>${t('rec_cfm')}</dt><dd>${Math.round(r.cfmTot).toLocaleString(LOC())} CFM</dd>
+        <dt>${t('airflow_data')}</dt><dd>${t('src_'+m.cfmSrc)}</dd>
+        <dt>${t('rated_supply')}</dt><dd>${r.full.sup?SUP[r.full.sup]:F.power.map(p=>SUP[p]||p).join(', ')}</dd>
+        <dt>${t('spacing')}${m.spacingDerived?t('derived'):''}</dt><dd>${lenLabel(m.spacing*FT)}</dd>
+      </dl>
+      <div class="tags">${(r.tags||[]).map(k=>`<span>${t(k)}</span>`).join('')}${r.short?`<span>${t('tag_short')}</span>`:''}</div>`;
+    if(inUse){ const p=document.createElement('p'); p.className='inuse'; p.textContent=t('in_use'); d.appendChild(p); }
+    else { const b=document.createElement('button'); b.type='button'; b.className='btn'+(i===0?' primary':''); b.textContent=t('use_layout'); b.onclick=()=>applyRec(r); d.appendChild(b); }
+    g.appendChild(d);
+  });
+}
+
+/* ---------- Canvas ---------- */
+const plan=document.getElementById('plan'), sec=document.getElementById('section');
+const pc=plan.getContext('2d'), sc=sec.getContext('2d');
+let DPR=Math.min(2,window.devicePixelRatio||1);
+const FONT=()=>getComputedStyle(document.body).fontFamily;
+function fit(c){ const r=c.getBoundingClientRect(); c.width=Math.round(r.width*DPR); c.height=Math.round(r.height*DPR); }
+function fitAll(){ DPR=Math.min(2,window.devicePixelRatio||1); fit(plan); fit(sec); }
+new ResizeObserver(fitAll).observe(plan); new ResizeObserver(fitAll).observe(sec);
+function planTx(){ const pad=34*DPR, s=Math.min((plan.width-2*pad)/S.L,(plan.height-2*pad)/S.W);
+  return {s, ox:(plan.width-S.L*s)/2, oy:(plan.height-S.W*s)/2}; }
+function secTx(){ const Hm=Hmax(), pad=20*DPR, sx=(sec.width-2*pad)/secLen(), sz=Math.min((sec.height-2*pad)/Hm,sx*4);
+  return {sx, sz, ox:pad, oy:(sec.height-Hm*sz)/2, exag:sz/sx, Hm}; }
+
+let planHeat=null, secHeat=null, grid=null;
+function buildHeat(){
+  if(!S.ran||!hasRoom()) return;
+  const nx=150, ny=Math.max(10,Math.round(nx*S.W/S.L));
+  const img=new ImageData(nx,ny); grid={v:new Float32Array(nx*ny), m:new Uint8Array(nx*ny)};
+  for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){
+    const x=(i+.5)/nx*S.L, y=(j+.5)/ny*S.W, k=j*nx+i;
+    const sp=vel(x,y,S.zA)[3]; grid.v[k]=sp; grid.m[k]=S.obs.some(o=>o.h>S.zA&&inside(o,x,y))?0:1;
+    const c=cmap(Math.sqrt(sp/VMAX)); img.data.set([c[0],c[1],c[2],255],k*4);
+  }
+  planHeat=toCanvas(img);
+  const mx=200, mz=60, Hm=Hmax(), SL=secLen(), img2=new ImageData(mx,mz);
+  for(let j=0;j<mz;j++) for(let i=0;i<mx;i++){
+    const [px,py]=secPt((i+.5)/mx*SL), z=Hm-(j+.5)/mz*Hm; if(z>ceilAt(px,py)+0.2) continue;
+    const c=cmap(Math.sqrt(vel(px,py,z)[3]/VMAX)); img2.data.set([c[0],c[1],c[2],255],(j*mx+i)*4);
+  }
+  secHeat=toCanvas(img2); updateStats();
+}
+function toCanvas(img){ const c=document.createElement('canvas'); c.width=img.width; c.height=img.height; c.getContext('2d').putImageData(img,0,0); return c; }
+
+function updateStats(){
+  if(!S.ran||!grid) return;
+  let sum=0,cov=0,ce=0,n=0;
+  for(let i=0;i<grid.v.length;i++){ if(!grid.m[i]) continue; const v=grid.v[i]; n++; sum+=v; if(v>=BREEZE) cov++; ce+=cooling(v); }
+  n=Math.max(1,n); const ft=S.units==='ft';
+  $('sCool').textContent=ft?(ce/n*1.8).toFixed(1)+' °F':(ce/n).toFixed(1)+' °C';
+  $('sAvg').textContent=ft?Math.round(sum/n*MS2FPM)+' FPM':(sum/n).toFixed(2)+' m/s';
+  $('sCov').textContent=Math.round(cov/n*100)+'%';
+  $('sCovLbl').textContent=t('st_cov',{v:ft?'50 FPM':'0.25 m/s'});
+  const ceil=S.fans.filter(f=>famOf(f).kind!=='circ'), per=ceil.length?S.L*S.W/ceil.length:0;
+  $('sArea').textContent=ceil.length?(ft?Math.round(per/(FT*FT)).toLocaleString(LOC())+' ft²':Math.round(per).toLocaleString(LOC())+' m²'):'–';
+  let w=0, cfm=0; const missing=new Set(), atMax=new Set(), est=new Set();
+  S.fans.forEach(f=>{ const m=MB[f.model], p=perf(m,f.speed); cfm+=p.cfm;
+    if(p.w==null) missing.add(FAM[m.fam].name); else { w+=p.w; if(p.wMax) atMax.add(FAM[m.fam].name); }
+    if(m.cfmSrc==='estimated') est.add(m.label); });
+  $('sPow').textContent=S.fans.length?Math.round(w).toLocaleString(LOC())+' W':'–';
+  const notes=[]; if(atMax.size) notes.push(t('st_pow_max',{list:[...atMax].join(', ')})); if(missing.size) notes.push(t('st_pow_na',{list:[...missing].join(', ')}));
+  $('sPowLbl').textContent=t('st_pow')+(notes.length?` (${notes.join('; ')})`:'');
+  $('sCfm').textContent=ft?Math.round(cfm).toLocaleString(LOC())+' CFM':Math.round(cfm*CFM2M3S*3600).toLocaleString(LOC())+' m³/h';
+  $('sCfmLbl').textContent=t('st_cfm')+(est.size?t('st_cfm_est'):'');
+}
+
+/* ---------- Particles ---------- */
+const TRAIL=8;
+const mkP=n=>Array.from({length:n},()=>({x:0,y:0,age:0,life:0,h:[],still:0,spd:0}));
+const pp=mkP(1600), sp=mkP(600);
+function spawnPlan(p){
+  if(!hasRoom()) return;
+  for(let t=0;t<6;t++){
+    if(S.fans.length&&Math.random()<.5){ const f=S.fans[Math.random()*S.fans.length|0], m=MB[f.model];
+      if(famOf(f).kind==='circ'){ const d=Math.random()*12; p.x=f.x+Math.cos(f.aim)*d+(Math.random()-.5)*m.dia; p.y=f.y+Math.sin(f.aim)*d+(Math.random()-.5)*m.dia; }
+      else { const a=Math.random()*6.283, r=Math.random()*m.dia*.8; p.x=f.x+Math.cos(a)*r; p.y=f.y+Math.sin(a)*r; } }
+    else { p.x=Math.random()*S.L; p.y=Math.random()*S.W; }
+    if(!S.obs.some(o=>o.h>S.zA&&inside(o,p.x,p.y))) break;
+  }
+  p.age=0; p.life=2.5+Math.random()*5; p.h.length=0; p.still=0;
+}
+function spawnSec(p){
+  if(!hasRoom()) return;
+  const near=S.fans.filter(f=>famOf(f).kind!=='circ'&&secOff(f)<MB[f.model].dia*.7);
+  if(near.length&&Math.random()<.6){ const f=near[Math.random()*near.length|0]; p.x=secAlong(f)+(Math.random()-.5)*MB[f.model].dia; p.y=f.z-.1-Math.random()*.6; }
+  else { p.x=Math.random()*secLen(); p.y=Math.random()*ceilAt(...secPt(p.x)); }
+  p.age=0; p.life=3+Math.random()*5; p.h.length=0; p.still=0;
+}
+pp.forEach(spawnPlan); sp.forEach(spawnSec);
+function stepParticles(dt){
+  if(!S.ran) return;
+  const k=Math.max(1.5,S.L/40);
+  for(const p of pp){
+    const v=vel(p.x,p.y,S.zA), s=Math.hypot(v[0],v[1]);
+    p.x+=v[0]*dt*k; p.y+=v[1]*dt*k; p.age+=dt; p.spd=v[3];
+    p.still=s<.05?p.still+dt:0; p.h.push(p.x,p.y); if(p.h.length>TRAIL*2) p.h.splice(0,2);
+    if(S.obs.some(o=>o.h>S.zA&&inside(o,p.x,p.y))||p.age>p.life||p.still>1||p.x<0||p.y<0||p.x>S.L||p.y>S.W) spawnPlan(p);
+  }
+  const SL=secLen();
+  for(const p of sp){
+    const v=vel(...secPt(p.x),p.y), h=secH(v), s=Math.hypot(h,v[2]);
+    p.x+=h*dt*k; p.y+=v[2]*dt*k*.6; p.age+=dt; p.spd=s;
+    p.still=s<.05?p.still+dt:0; p.h.push(p.x,p.y); if(p.h.length>TRAIL*2) p.h.splice(0,2);
+    const [qx,qy]=secPt(p.x);
+    if(S.obs.some(o=>o.h>p.y&&inside(o,qx,qy))||p.age>p.life||p.still>1||p.x<0||p.y<.05||p.x>SL||p.y>ceilAt(qx,qy)) spawnSec(p);
+  }
+}
+
+/* ---------- Drawing ---------- */
+function drawTrails(ctx,list,X,Y){
+  ctx.lineCap='round';
+  for(const p of list){
+    if(p.h.length<4) continue;
+    const fade=Math.max(0,Math.min(1,p.age/.4)*Math.min(1,(p.life-p.age)/.6));
+    ctx.strokeStyle=`rgba(240,248,246,${fade*Math.min(.9,.2+p.spd*.5)})`;
+    ctx.lineWidth=(0.9+Math.min(1.4,p.spd*.5))*DPR; ctx.beginPath();
+    for(let i=0;i<p.h.length;i+=2){ const a=X(p.h[i]), b=Y(p.h[i+1]); i?ctx.lineTo(a,b):ctx.moveTo(a,b); }
+    ctx.stroke();
+  }
+}
+const isSel=(k,i)=>S.sel.kind===k&&S.sel.i===i;
+function drawFanPlan(ctx,f,tx,sel){
+  const m=MB[f.model], F=FAM[m.fam], cx=tx.ox+f.x*tx.s, cy=tx.oy+f.y*tx.s;
+  ctx.save(); ctx.translate(cx,cy);
+  if(F.kind==='circ'){
+    const r=Math.max(7*DPR,m.dia*0.62*tx.s);
+    ctx.fillStyle=sel?'#9ED3A8':'#E3C443'; ctx.strokeStyle='#0F1C21'; ctx.lineWidth=1.5*DPR;
+    ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fill(); ctx.stroke();
+    ctx.rotate(f.aim); ctx.strokeStyle=sel?'#9ED3A8':'#E3C443'; ctx.lineWidth=2.5*DPR;
+    ctx.beginPath(); ctx.moveTo(r+2*DPR,0); ctx.lineTo(r+22*DPR,0); ctx.moveTo(r+15*DPR,-6*DPR); ctx.lineTo(r+22*DPR,0); ctx.lineTo(r+15*DPR,6*DPR); ctx.stroke();
+    ctx.restore(); return;
+  }
+  const r=m.dia/2*tx.s;
+  ctx.strokeStyle=sel?'#9ED3A8':'rgba(230,240,238,.5)'; ctx.lineWidth=(sel?2:1)*DPR;
+  ctx.setLineDash([4*DPR,4*DPR]); ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.stroke(); ctx.setLineDash([]);
+  ctx.rotate(f.ang); ctx.fillStyle=sel?'rgba(158,211,168,.9)':'rgba(236,242,240,.85)';
+  const nb=F.blades, bw=Math.max(1.5*DPR,r*.07);
+  for(let i=0;i<nb;i++){ ctx.rotate(Math.PI*2/nb); ctx.beginPath();
+    ctx.moveTo(r*.12,-bw*.5); ctx.lineTo(r*.97,-bw*.35); ctx.lineTo(r*.97,bw*.35); ctx.lineTo(r*.12,bw*.6); ctx.closePath(); ctx.fill(); }
+  ctx.rotate(-f.ang);
+  const hub=Math.max(8*DPR,r*.14);
+  ctx.fillStyle=sel?'#9ED3A8':'#DDE6E4'; ctx.beginPath(); ctx.arc(0,0,hub,0,7); ctx.fill();
+  ctx.fillStyle='#0F1C21'; ctx.font=`600 ${11*DPR}px ${FONT()}`; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(f.id,0,.5*DPR); ctx.restore();
+}
+function drawObsPlan(ctx,o,tx,sel){
+  const r=rectOf(o), x=tx.ox+r[0]*tx.s, y=tx.oy+r[1]*tx.s, w=o.l*tx.s, h=o.d*tx.s;
+  ctx.fillStyle=o.kind==='rack'?'#3A4C55':'#4A4A52'; ctx.fillRect(x,y,w,h);
+  ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
+  ctx.strokeStyle='rgba(255,255,255,.12)'; ctx.lineWidth=DPR; ctx.beginPath();
+  if(o.kind==='rack'){ const st=8*FT*tx.s; if(o.l>=o.d) for(let a=x+st;a<x+w;a+=st){ctx.moveTo(a,y);ctx.lineTo(a,y+h);} else for(let a=y+st;a<y+h;a+=st){ctx.moveTo(x,a);ctx.lineTo(x+w,a);} }
+  else for(let a=-h;a<w;a+=8*DPR){ ctx.moveTo(x+a,y+h); ctx.lineTo(x+a+h,y); }
+  ctx.stroke(); ctx.restore();
+  ctx.strokeStyle=sel?'#9ED3A8':'rgba(220,230,228,.55)'; ctx.lineWidth=(sel?2:1)*DPR; ctx.strokeRect(x,y,w,h);
+}
+function lenLabel(m){ if(S.units==='ft'){ const f=m/FT; return (f<20?Math.round(f*10)/10:Math.round(f))+' ft'; } return (m<100?Math.round(m*10)/10:Math.round(m))+' m'; }
+
+function emptyMsg(ctx,c,lines){
+  ctx.clearRect(0,0,c.width,c.height); ctx.fillStyle='#9FB3B6'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  lines.forEach((t,i)=>{ ctx.font=`${(i?13:16)*DPR}px ${FONT()}`; ctx.fillText(t,c.width/2,c.height/2+(i-(lines.length-1)/2)*24*DPR); });
+}
+function drawPlan(){
+  if(!hasRoom()) return emptyMsg(pc,plan,[t('plan_e1'),t('plan_e2')]);
+  const ctx=pc, tx=planTx(), W=S.L*tx.s, H=S.W*tx.s;
+  ctx.clearRect(0,0,plan.width,plan.height);
+  if(S.ran&&S.showHeat&&planHeat){ ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high'; ctx.drawImage(planHeat,tx.ox,tx.oy,W,H); }
+  else { ctx.fillStyle='#14262C'; ctx.fillRect(tx.ox,tx.oy,W,H); }
+  const step=S.units==='ft'?(S.L>60?25*FT:5*FT):(S.L>20?10:2);
+  ctx.strokeStyle='rgba(255,255,255,.06)'; ctx.lineWidth=1; ctx.beginPath();
+  for(let x=step;x<S.L;x+=step){ ctx.moveTo(tx.ox+x*tx.s,tx.oy); ctx.lineTo(tx.ox+x*tx.s,tx.oy+H); }
+  for(let y=step;y<S.W;y+=step){ ctx.moveTo(tx.ox,tx.oy+y*tx.s); ctx.lineTo(tx.ox+W,tx.oy+y*tx.s); }
+  ctx.stroke();
+  S.obs.forEach((o,i)=>drawObsPlan(ctx,o,tx,isSel('obs',i)));
+  if(S.ran&&S.showFlow) drawTrails(ctx,pp,x=>tx.ox+x*tx.s,y=>tx.oy+y*tx.s);
+  ctx.strokeStyle='#DDE6E4'; ctx.lineWidth=3*DPR; ctx.strokeRect(tx.ox,tx.oy,W,H);
+  ctx.strokeStyle='#9ED3A8'; ctx.lineWidth=1.5*DPR; ctx.setLineDash([8*DPR,6*DPR]); ctx.beginPath();
+  if(S.secAxis==='x'){ const cy=tx.oy+secC()*tx.s; ctx.moveTo(tx.ox-14*DPR,cy); ctx.lineTo(tx.ox+W+14*DPR,cy); }
+  else { const cx=tx.ox+secC()*tx.s; ctx.moveTo(cx,tx.oy-14*DPR); ctx.lineTo(cx,tx.oy+H+14*DPR); }
+  ctx.stroke(); ctx.setLineDash([]);
+  if(sloped()){
+    ctx.save(); ctx.strokeStyle='rgba(255,255,255,.45)'; ctx.fillStyle='rgba(255,255,255,.75)'; ctx.lineWidth=1.5*DPR; ctx.setLineDash([2*DPR,5*DPR]);
+    ctx.font=`${11*DPR}px ${FONT()}`; const ax=S.roof.axis==='W';
+    if(S.roof.type==='gable'){ ctx.beginPath();
+      if(ax){ ctx.moveTo(tx.ox,tx.oy+H/2); ctx.lineTo(tx.ox+W,tx.oy+H/2); } else { ctx.moveTo(tx.ox+W/2,tx.oy); ctx.lineTo(tx.ox+W/2,tx.oy+H); }
+      ctx.stroke(); ctx.textAlign='left'; ctx.textBaseline='bottom';
+      ctx.fillText(t('ridge'),ax?tx.ox+6*DPR:tx.ox+W/2+5*DPR,ax?tx.oy+H/2-4*DPR:tx.oy+16*DPR);
+    } else { ctx.textAlign=ax?'left':'right'; ctx.textBaseline='bottom';
+      ctx.fillText('▲ '+t('high_side'),ax?tx.ox+6*DPR:tx.ox+W-6*DPR,ax?tx.oy+H-6*DPR:tx.oy+16*DPR); }
+    ctx.restore();
+  }
+  S.fans.forEach((f,i)=>drawFanPlan(ctx,f,tx,isSel('fan',i)));
+  ctx.fillStyle='#9FB3B6'; ctx.font=`${12*DPR}px ${FONT()}`; ctx.textAlign='center'; ctx.textBaseline='bottom';
+  ctx.fillText(lenLabel(S.L),tx.ox+W/2,tx.oy-8*DPR);
+  ctx.save(); ctx.translate(tx.ox-10*DPR,tx.oy+H/2); ctx.rotate(-Math.PI/2); ctx.fillText(lenLabel(S.W),0,0); ctx.restore();
+  if(!S.ran){ ctx.fillStyle='rgba(15,28,33,.75)'; const msg=t('plan_press');
+    ctx.font=`${14*DPR}px ${FONT()}`; const w=ctx.measureText(msg).width+36*DPR;
+    ctx.fillRect(tx.ox+W/2-w/2,tx.oy+H/2-20*DPR,w,40*DPR); ctx.fillStyle='#E4EAE9'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(msg,tx.ox+W/2,tx.oy+H/2); }
+}
+function drawSection(){
+  if(!hasRoom()) return emptyMsg(sc,sec,[t('sec_empty')]);
+  const SL=secLen(), c0=secC(), ctx=sc, tx=secTx(), W=SL*tx.sx, H=tx.Hm*tx.sz, X=x=>tx.ox+x*tx.sx, Y=z=>tx.oy+(tx.Hm-z)*tx.sz;
+  const prof=[0,SL/2,SL].map(a=>[X(a),Y(ceilAt(...secPt(a)))]);
+  const outline=()=>{ ctx.beginPath(); ctx.moveTo(X(0),Y(0)); prof.forEach(([a,b])=>ctx.lineTo(a,b)); ctx.lineTo(X(SL),Y(0)); ctx.closePath(); };
+  ctx.clearRect(0,0,sec.width,sec.height);
+  ctx.save(); outline(); ctx.clip();
+  if(S.ran&&S.showHeat&&secHeat){ ctx.imageSmoothingEnabled=true; ctx.drawImage(secHeat,tx.ox,tx.oy,W,H); }
+  else { ctx.fillStyle='#14262C'; ctx.fillRect(tx.ox,tx.oy,W,H); }
+  ctx.restore();
+  S.obs.forEach(o=>{ const r=rectOf(o), ax=S.secAxis==='x';
+    if(ax?(c0<r[1]||c0>r[3]):(c0<r[0]||c0>r[2])) return;
+    const a0=ax?r[0]:r[1], len=ax?o.l:o.d;
+    ctx.fillStyle=o.kind==='rack'?'#3A4C55':'#4A4A52'; ctx.fillRect(X(a0),Y(o.h),len*tx.sx,o.h*tx.sz);
+    ctx.strokeStyle='rgba(220,230,228,.5)'; ctx.lineWidth=DPR; ctx.strokeRect(X(a0),Y(o.h),len*tx.sx,o.h*tx.sz); });
+  if(S.ran&&S.showFlow) drawTrails(ctx,sp,X,Y);
+  ctx.strokeStyle='rgba(158,211,168,.85)'; ctx.setLineDash([6*DPR,5*DPR]); ctx.lineWidth=1.2*DPR;
+  ctx.beginPath(); ctx.moveTo(tx.ox,Y(S.zA)); ctx.lineTo(tx.ox+W,Y(S.zA)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle='rgba(225,235,233,.85)';
+  for(const fx of [.08,.5,.92]){ const a=SL*fx; if(!S.obs.some(o=>inside(o,...secPt(a)))) person(ctx,X(a),Y(0),tx.sz); }
+  S.fans.forEach((f,i)=>{
+    const m=MB[f.model], F=FAM[m.fam], sel=isSel('fan',i), cx=X(secAlong(f));
+    ctx.strokeStyle=sel?'#9ED3A8':'#DDE6E4'; ctx.fillStyle=ctx.strokeStyle;
+    if(F.kind==='circ'){ if(secOff(f)>3) return;
+      ctx.fillStyle=sel?'#9ED3A8':'#E3C443'; ctx.beginPath(); ctx.arc(cx,Y(f.z),Math.max(5*DPR,m.dia*.6*tx.sz),0,7); ctx.fill(); return; }
+    const dy=secOff(f), near=dy<m.dia/2, half=near?Math.sqrt(1-Math.pow(dy/(m.dia/2),2))*m.dia/2:m.dia/2;
+    ctx.globalAlpha=near?1:.25;
+    ctx.lineWidth=2*DPR; ctx.beginPath(); ctx.moveTo(cx,Y(ceilAt(f.x,f.y))); ctx.lineTo(cx,Y(f.z)); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(cx,Y(f.z)-4*DPR,10*DPR,7*DPR,0,0,7); ctx.fill();
+    ctx.lineWidth=3*DPR; ctx.beginPath(); ctx.moveTo(cx-half*tx.sx,Y(f.z)); ctx.lineTo(cx+half*tx.sx,Y(f.z)); ctx.stroke();
+    ctx.globalAlpha=1;
+  });
+  ctx.strokeStyle='#DDE6E4'; ctx.lineWidth=3*DPR; ctx.lineJoin='round'; outline(); ctx.stroke();
+  ctx.fillStyle='#9FB3B6'; ctx.font=`${12*DPR}px ${FONT()}`; ctx.textAlign='right'; ctx.textBaseline='top';
+  ctx.fillText(sloped()?t('roof_lbl',{a:lenLabel(S.H),b:lenLabel(Hmax())}):t('ceil_lbl',{h:lenLabel(S.H)}),tx.ox+W-8*DPR,tx.oy+6*DPR);
+}
+function person(ctx,x,yF,s){ const h=1.75*s, hr=.12*s, w=.42*s, top=yF-h+hr*2.3;
+  ctx.beginPath(); ctx.arc(x,yF-h+hr,hr,0,7); ctx.fill();
+  ctx.fillRect(x-w/2,top,w,.6*s); ctx.fillRect(x-w*.42,top+.58*s,w*.36,yF-top-.58*s); ctx.fillRect(x+w*.06,top+.58*s,w*.36,yF-top-.58*s); }
+
+/* ---------- Loop ---------- */
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let last=performance.now(), warmed=false;
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000); last=now;
+  if(S.dirty){ buildHeat(); S.dirty=false; }
+  if(!reduce) for(const f of S.fans){ const m=MB[f.model]; if(FAM[m.fam].kind!=='circ') f.ang+=(f.dir==='up'?-1:1)*f.speed*dt*Math.min(3,m.rpm/40); }
+  if(S.showFlow){ if(!reduce) stepParticles(dt); else if(!warmed){ for(let i=0;i<120;i++) stepParticles(.03); warmed=true; } }
+  drawPlan(); drawSection(); requestAnimationFrame(frame);
+}
+
+/* ---------- UI ---------- */
+function $(id){ return document.getElementById(id); }
+const modelSel=$('fanModel');
+Object.entries(FAM).forEach(([k,F])=>{ const g=document.createElement('optgroup'); g.dataset.fam=k; g.label=`${F.name} (${t('line_'+k)})`;
+  MODELS.filter(m=>m.fam===k).forEach(m=>{ const o=document.createElement('option'); o.value=m.id; o.textContent=m.label; g.appendChild(o); });
+  modelSel.appendChild(g); });
+const toDisp=m=>S.units==='ft'?Math.round(m/FT*10)/10:Math.round(m*100)/100;
+const fromDisp=v=>S.units==='ft'?v*FT:v;
+function changed(){ S.dirty=true; warmed=false; }
+const areaLabel=a=>S.units==='ft'?a.toLocaleString(LOC())+' ft²':Math.round(a*FT*FT).toLocaleString(LOC())+' m²';
+
+function syncRoom(){
+  $('roomL').value=S.L?Math.round(toDisp(S.L)):''; $('roomW').value=S.W?Math.round(toDisp(S.W)):''; $('roomH').value=S.H?Math.round(toDisp(S.H)):'';
+  const u=S.units==='ft'?'ft':'m';
+  $('roomL').step=$('roomW').step=S.units==='ft'?5:1; $('roomH').step=S.units==='ft'?1:0.5;
+  const hKey=S.roof.type==='flat'?'len_H':S.roof.type==='single'?'len_Hlow':'len_Hwall';
+  document.querySelectorAll('.u-len').forEach((el,i)=>el.textContent=t(['len_L','len_W',hKey][i])+` (${u})`);
+  document.querySelectorAll('#roofSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.r===S.roof.type));
+  $('roofOpts').hidden=S.roof.type==='flat'; $('roofAxis').value=S.roof.axis;
+  if(document.activeElement!==$('roofSlope')) $('roofSlope').value=S.roof.type==='flat'?'':Math.round(S.roof.slope*1000)/10;
+  $('roofInfo').textContent=sloped()&&S.H>0?t('roof_info',{b:lenLabel(Hmax()),d:roofDeg().toFixed(1)}):'';
+  $('roofInfo').hidden=!$('roofInfo').textContent;
+  document.querySelectorAll('.u-len2').forEach((el,i)=>el.textContent=t(['len2_L','len2_D','len2_H'][i])+` (${u})`);
+  $('scaleMax').textContent=S.units==='ft'?'600 FPM':VMAX.toFixed(1)+' m/s';
+  $('sliceVal').textContent=S.W&&S.L?lenLabel(secC()):'–';
+  document.querySelectorAll('#secSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.a===S.secAxis));
+  if(!hasRoom()){ $('secNote').textContent=t('secNote'); return; }
+  const tx=secTx(); $('secNote').textContent=t('secNote')+(tx.exag>1.05?t('secStretch',{x:tx.exag.toFixed(1)}):'');
+}
+function renderLists(){
+  const fl=$('fanList'); fl.innerHTML='';
+  if(!S.fans.length) fl.innerHTML=`<li class="empty">${t('fans_empty')}</li>`;
+  S.fans.forEach((f,i)=>{ const li=document.createElement('li'), b=document.createElement('button');
+    b.type='button'; b.textContent=(famOf(f).kind==='circ'?t('chip_jan'):t('chip_fan'))+' '+f.id; b.setAttribute('aria-current',isSel('fan',i)); b.onclick=()=>select('fan',i); li.appendChild(b); fl.appendChild(li); });
+  const ol=$('obsList'); ol.innerHTML='';
+  if(!S.obs.length) ol.innerHTML=`<li class="empty">${t('obs_empty')}</li>`;
+  S.obs.forEach((o,i)=>{ const li=document.createElement('li'), b=document.createElement('button');
+    b.type='button'; b.textContent=(o.kind==='rack'?t('rack'):t('equip'))+' '+o.id; b.setAttribute('aria-current',isSel('obs',i)); b.onclick=()=>select('obs',i); li.appendChild(b); ol.appendChild(li); });
+  $('fanEditor').style.display=S.sel.kind==='fan'&&S.fans[S.sel.i]?'':'none';
+  $('obsEditor').style.display=S.sel.kind==='obs'&&S.obs[S.sel.i]?'':'none';
+}
+function fanWarnings(f){
+  const m=MB[f.model], F=FAM[m.fam], w=[];
+  if(F.kind==='circ') return '';
+  if(f.z<F.minClear) w.push(t('w_clear',{h:lenLabel(F.minClear)}));
+  for(const o of S.obs){
+    if(inside(o,f.x,f.y)){ w.push(t('w_over',{what:t(o.kind==='rack'?'obj_rack':'obj_equip'),id:o.id})); break; }
+    const r=rectOf(o), nx=Math.max(r[0],Math.min(f.x,r[2])), ny=Math.max(r[1],Math.min(f.y,r[3]));
+    if(Math.hypot(f.x-nx,f.y-ny)<m.dia/2&&f.z-o.h<2*FT){ w.push(t('w_near',{d:lenLabel(2*FT),what:t(o.kind==='rack'?'obj2_rack':'obj2_equip'),id:o.id})); break; }
+  }
+  for(const g of S.fans){ if(g===f||famOf(g).kind==='circ') continue;
+    if(Math.hypot(g.x-f.x,g.y-f.y)<m.dia+MB[g.model].dia){ w.push(t('w_fight',{id:g.id})); break; } }
+  if(S.wet&&!F.wet) w.push(t('w_wet',{name:F.name}));
+  if(S.power!=='any'&&!F.power.includes(S.power)) w.push(t('w_power',{name:F.name}));
+  return w.join(' ');
+}
+function syncFan(){
+  const f=S.fans[S.sel.i]; if(S.sel.kind!=='fan'||!f) return;
+  const m=MB[f.model], F=FAM[m.fam], circ=F.kind==='circ';
+  $('fanTitle').textContent=t(circ?'jan_title':'fan_title',{id:f.id}); modelSel.value=f.model;
+  const rows=[];
+  if(circ){ rows.push([t('r_airflow'),m.cfm.toLocaleString(LOC())+' CFM'],[t('r_spd_hl'),m.rpm+' RPM'],[t('r_sound'),m.dba+' dB'],[t('r_motor'),m.hp]); }
+  else {
+    const p=perf(m,f.speed), pct=Math.round(f.speed*100);
+    if(p.src==='amca'){
+      rows.push([t('r_supply'),SUP[p.sup]+' (AMCA)'],[t('r_at',{p:pct}),`${Math.round(p.rpm)} RPM`],[t('r_airflow'),Math.round(p.cfm).toLocaleString(LOC())+' CFM'+(p.certified?'':t('interp'))],
+        [t('r_power'),Math.round(p.w).toLocaleString(LOC())+' W'+(p.certified?'':t('interp'))],[t('r_standby'),p.d.sb+' W'],[t('r_cfei'),p.d.cfei[0].toFixed(2)+' / '+p.d.cfei[1].toFixed(2)]);
+    } else {
+      rows.push([t('r_maxspd'),m.rpm+' RPM'],[t('r_air_at'),Math.round(p.cfm).toLocaleString(LOC())+' CFM '+(m.cfmSrc==='published'?t('src_sheet'):t('src_est',{ref:m.refLabel}))],
+        [t('r_maxpow'),m.w!=null?m.w.toLocaleString(LOC())+' W':t('not_listed')]);
+    }
+    rows.push([m.spacingDerived?t('r_spacing_d'):t('r_spacing'),lenLabel(m.spacing*FT)],[t('r_area'),areaLabel(m.area)],
+      [t('r_weight'),m.lb+' lb'],[t('r_soundmax'),m.dba?m.dba+' dBA':t('not_listed')]);
+  }
+  $('fanSpec').innerHTML=rows.map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join('');
+  const sl=$('fanSpeed');
+  if(F.steps===2){ sl.min=0; sl.max=1; sl.step=1; sl.value=f.speed>0.9?1:0; $('speedVal').textContent=f.speed>0.9?t('high'):t('low'); }
+  else if(F.steps===8){ sl.min=1; sl.max=8; sl.step=1; sl.value=Math.round(f.speed*8); $('speedVal').textContent=t('of',{a:Math.round(f.speed*8),b:8}); }
+  else if(F.steps===10){ sl.min=1; sl.max=10; sl.step=1; sl.value=Math.round(f.speed*10); $('speedVal').textContent=t('of',{a:Math.round(f.speed*10),b:10}); }
+  else { sl.min=10; sl.max=100; sl.step=5; sl.value=Math.round(f.speed*100); $('speedVal').textContent=Math.round(f.speed*100)+'%'; }
+  const [lo,hi]=zRange(m,f.x,f.y), mt=$('fanMount'); mt.min=lo; mt.max=hi; mt.value=f.z;
+  $('mountLbl').textContent=circ?t('mount_circ'):t('mount_blade');
+  $('mountVal').textContent=circ?lenLabel(f.z):t('below_deck',{a:lenLabel(f.z),b:lenLabel(ceilAt(f.x,f.y)-f.z)});
+  $('aimWrap').style.display=circ?'':'none'; $('dirWrap').style.display=circ?'none':'';
+  $('fanAim').value=Math.round((f.aim*180/Math.PI+360)%360); $('aimVal').textContent=$('fanAim').value+'°';
+  $('fanWarn').textContent=fanWarnings(f);
+  document.querySelectorAll('#dirSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.d===f.dir));
+}
+function syncObs(){
+  const o=S.obs[S.sel.i]; if(S.sel.kind!=='obs'||!o) return;
+  $('obsTitle').textContent=(o.kind==='rack'?t('rack'):t('equip'))+' '+o.id;
+  $('obsL').value=Math.round(toDisp(o.l)); $('obsD').value=Math.round(toDisp(o.d)); $('obsH').value=Math.round(toDisp(o.h));
+}
+function select(kind,i){
+  S.sel={kind,i}; renderLists(); syncFan(); syncObs();
+  const it=kind==='fan'?S.fans[i]:S.obs[i];
+  if(it&&hasRoom()){ S.slice=sliceFrom(it); $('slice').value=S.slice; $('sliceVal').textContent=lenLabel(secC()); sp.forEach(spawnSec); changed(); }
+}
+function clampAll(){
+  for(const f of S.fans){ f.x=Math.min(S.L-.5,Math.max(.5,f.x)); f.y=Math.min(S.W-.5,Math.max(.5,f.y)); const [lo,hi]=zRange(MB[f.model],f.x,f.y); f.z=Math.min(hi,Math.max(lo,f.z)); }
+  for(const o of S.obs){ o.l=Math.min(o.l,S.L); o.d=Math.min(o.d,S.W); o.h=Math.min(o.h,ceilAt(o.x,o.y)-.3); o.x=Math.min(S.L-o.l/2,Math.max(o.l/2,o.x)); o.y=Math.min(S.W-o.d/2,Math.max(o.d/2,o.y)); }
+}
+function setRoom(L,W,H){ S.L=L*FT; S.W=W*FT; S.H=H*FT; S.roof={type:'flat',slope:0,axis:'W'}; S.secAxis='x'; S.slice=0.5; S.fans=[]; S.obs=[]; fanSeq=1; obsSeq=1; }
+const PRESETS={
+  warehouse(){ setRoom(300,200,36); for(const bx of [30,170]) for(let y=70;y<=185;y+=20) S.obs.push(makeObs('rack',(bx+50)*FT,y*FT,100*FT,8*FT,24*FT)); },
+  plant(){ setRoom(220,140,30); [[50,40,30,16,10],[110,40,40,14,12],[170,40,30,16,10],[60,105,40,12,9],[160,105,40,12,9]].forEach(([x,y,l,d,h])=>S.obs.push(makeObs('machine',x*FT,y*FT,l*FT,d*FT,h*FT))); },
+  gym(){ setRoom(120,90,30); },
+  hangar(){ setRoom(240,180,45); },
+  barn(){ setRoom(320,100,14); S.roof={type:'gable',slope:0.25,axis:'W'}; for(const y of [22,78]) S.obs.push(makeObs('machine',160*FT,y*FT,280*FT,3*FT,4*FT)); },
+  shop(){ setRoom(60,40,14); },
+  empty(){ setRoom(200,150,32); },
+};
+function loadPreset(key){
+  if(!PRESETS[key]) return;
+  PRESETS[key](); autoSecAxis(); $('slice').value=S.slice; clampAll(); syncRoom(); resetRun();
+}
+
+$('roomPreset').onchange=e=>loadPreset(e.target.value);
+['roomL','roomW','roomH'].forEach(id=>{
+  const read=()=>{ const raw=$(id).value.trim(), v=parseFloat(raw), key={roomL:'L',roomW:'W',roomH:'H'}[id];
+    if(raw===''||!(v>0)){ S[key]=null; return; }
+    const m=fromDisp(v); S[key]=key==='H'?Math.max(2.4,Math.min(25,m)):Math.max(6,Math.min(400,m)); };
+  $(id).addEventListener('input',()=>{ read(); updateRunState(); });
+  $(id).addEventListener('change',()=>{ read(); $('roomPreset').value='';
+    if(hasRoom()) clampAll(); syncRoom(); if(S.ran) resetRun(); else updateRunState(); });
+});
+function roofChanged(){ autoSecAxis(); S.slice=0.5; $('slice').value=0.5; $('roomPreset').value=''; if(hasRoom()) clampAll(); syncRoom(); if(S.ran) resetRun(); else updateRunState(); }
+document.querySelectorAll('#roofSeg button').forEach(b=>b.onclick=()=>{ S.roof.type=b.dataset.r;
+  if(S.roof.type!=='flat'&&!(S.roof.slope>0)) S.roof.slope=0.1; roofChanged(); });
+$('roofSlope').addEventListener('change',()=>{ const v=parseFloat($('roofSlope').value); S.roof.slope=v>0?Math.min(60,v)/100:0; roofChanged(); });
+$('roofAxis').onchange=e=>{ S.roof.axis=e.target.value; roofChanged(); };
+document.querySelectorAll('#secSeg button').forEach(b=>b.onclick=()=>{ S.secAxis=b.dataset.a;
+  const f=S.sel.kind==='fan'&&S.fans[S.sel.i]; S.slice=f?sliceFrom(f):0.5; $('slice').value=S.slice;
+  syncRoom(); sp.forEach(spawnSec); changed(); });
+$('runBtn').onclick=runSim; $('rerunBtn').onclick=runSim;
+document.querySelectorAll('#unitSeg button').forEach(b=>b.onclick=()=>{
+  S.units=b.dataset.u; document.querySelectorAll('#unitSeg button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  syncRoom(); syncFan(); syncObs(); updateStats(); renderRecs(); });
+$('power').onchange=e=>{ S.power=e.target.value; syncFan(); changed(); scheduleRec(); updateRunState(); };
+$('wet').onchange=e=>{ S.wet=e.target.checked; syncFan(); scheduleRec(); updateRunState(); };
+
+function curModel(){ const f=S.fans[S.sel.kind==='fan'?S.sel.i:-1]; if(f&&famOf(f).kind!=='circ') return f;
+  return S.fans.find(g=>famOf(g).kind!=='circ'); }
+const keepDrop=(f,from,x,y)=>{ f.z=ceilAt(x,y)-(ceilAt(from.x,from.y)-from.z); };
+function openSpot(){ let x=S.L/2,y=S.W/2; for(let t=0;t<40;t++){ x=Math.random()*S.L; y=Math.random()*S.W; if(!S.obs.some(o=>inside(o,x,y,2))) break; } return [x,y]; }
+$('addFan').onclick=()=>{ const cur=curModel(), id=cur?.model||S.recs[0]?.m.id||'ECO-20', [x,y]=openSpot();
+  const f=makeFan(id,x,y); if(cur){ f.speed=cur.speed; keepDrop(f,cur,x,y); } S.fans.push(f); clampAll(); select('fan',S.fans.length-1); renderRecs(); };
+$('addJan').onclick=()=>{ const [x,y]=openSpot(); const f=makeFan('JAN-30',x,y); S.fans.push(f); clampAll(); select('fan',S.fans.length-1); renderRecs(); };
+$('autoLayout').onclick=()=>{
+  const cur=curModel(); if(!cur) return; const m=MB[cur.model], sp=m.spacing*FT;
+  const jans=S.fans.filter(f=>famOf(f).kind==='circ');
+  const nx=Math.max(1,Math.ceil(S.L/sp-0.1)), ny=Math.max(1,Math.ceil(S.W/sp-0.1));
+  const drop=ceilAt(cur.x,cur.y)-cur.z;
+  fanSeq=1; S.fans=gridLayout(m,nx,ny,(x,y)=>{ const [lo,hi]=zRange(m,x,y); return Math.min(hi,Math.max(lo,ceilAt(x,y)-drop)); }).map(f=>Object.assign(f,{id:fanSeq++, speed:cur.speed, dir:cur.dir}));
+  jans.forEach(j=>{ j.id=fanSeq++; S.fans.push(j); });
+  select('fan',0); renderRecs(); changed();
+};
+$('delFan').onclick=()=>{ S.fans.splice(S.sel.i,1); select('fan',Math.max(0,S.sel.i-1)); renderRecs(); changed(); };
+modelSel.onchange=()=>{ const f=S.fans[S.sel.i], wasCirc=famOf(f).kind==='circ'; f.model=modelSel.value;
+  if(wasCirc!==(famOf(f).kind==='circ')) f.z=defaultZ(MB[f.model],f.x,f.y); f.speed=1; f._k=null; clampAll(); syncFan(); renderLists(); renderRecs(); changed(); };
+$('fanSpeed').oninput=()=>{ const f=S.fans[S.sel.i], F=famOf(f), v=+$('fanSpeed').value;
+  f.speed=F.steps===2?(v?1:0.82):F.steps===8?v/8:F.steps===10?v/10:v/100; syncFan(); changed(); };
+$('fanMount').oninput=()=>{ S.fans[S.sel.i].z=parseFloat($('fanMount').value); syncFan(); changed(); };
+$('fanAim').oninput=()=>{ S.fans[S.sel.i].aim=+$('fanAim').value*Math.PI/180; $('aimVal').textContent=$('fanAim').value+'°'; changed(); };
+document.querySelectorAll('#dirSeg button').forEach(b=>b.onclick=()=>{ S.fans[S.sel.i].dir=b.dataset.d; syncFan(); changed(); });
+
+function addObs(kind){
+  if(!hasRoom()){ $('runMsg').className='runmsg bad'; $('runMsg').textContent=t('msg_needSize'); return; }
+  const o=kind==='rack'?makeObs('rack',S.L/2,S.W/2,Math.min(80*FT,S.L*.5),8*FT,Math.min(24*FT,S.H-2)):makeObs('machine',S.L/2,S.W/2,Math.min(30*FT,S.L*.3),Math.min(15*FT,S.W*.3),Math.min(10*FT,S.H-1));
+  S.obs.push(o); clampAll(); select('obs',S.obs.length-1); scheduleRec(); updateRunState(); }
+$('addRack').onclick=()=>addObs('rack'); $('addMachine').onclick=()=>addObs('machine');
+[['obsL','l'],['obsD','d'],['obsH','h']].forEach(([id,k])=>$(id).addEventListener('change',()=>{
+  const o=S.obs[S.sel.i], v=parseFloat($(id).value); if(v>0) o[k]=fromDisp(v); clampAll(); syncObs(); changed(); scheduleRec(); }));
+$('rotObs').onclick=()=>{ const o=S.obs[S.sel.i]; [o.l,o.d]=[o.d,o.l]; clampAll(); syncObs(); changed(); scheduleRec(); };
+$('dupObs').onclick=()=>{ const o=S.obs[S.sel.i], n=makeObs(o.kind,o.x,o.y,o.l,o.d,o.h);
+  if(o.l>=o.d) n.y+=o.d+12*FT; else n.x+=o.l+12*FT; S.obs.push(n); clampAll(); select('obs',S.obs.length-1); scheduleRec(); };
+$('delObs').onclick=()=>{ S.obs.splice(S.sel.i,1); if(S.obs.length) select('obs',Math.max(0,S.sel.i-1)); else select('fan',0); changed(); scheduleRec(); };
+
+document.querySelectorAll('#zSeg button').forEach(b=>b.onclick=()=>{
+  S.zA=parseFloat(b.dataset.z); document.querySelectorAll('#zSeg button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  pp.forEach(spawnPlan); changed(); scheduleRec(); });
+$('slice').oninput=()=>{ S.slice=parseFloat($('slice').value); $('sliceVal').textContent=lenLabel(secC()); sp.forEach(spawnSec); changed(); };
+$('showHeat').onchange=e=>S.showHeat=e.target.checked;
+$('showFlow').onchange=e=>S.showFlow=e.target.checked;
+
+let drag=null;
+function evPos(e){ if(!hasRoom()) return {x:-1e9,y:-1e9}; const r=plan.getBoundingClientRect(), tx=planTx();
+  return {x:((e.clientX-r.left)*DPR-tx.ox)/tx.s, y:((e.clientY-r.top)*DPR-tx.oy)/tx.s}; }
+function hit(p){
+  for(let i=S.fans.length-1;i>=0;i--){ const f=S.fans[i]; if(Math.hypot(p.x-f.x,p.y-f.y)<Math.max(MB[f.model].dia/2,1.5)) return {kind:'fan',i}; }
+  for(let i=S.obs.length-1;i>=0;i--){ if(inside(S.obs[i],p.x,p.y,.3)) return {kind:'obs',i}; }
+  return null; }
+plan.addEventListener('pointerdown',e=>{
+  const p=evPos(e), h=hit(p); if(!h) return;
+  select(h.kind,h.i); const it=h.kind==='fan'?S.fans[h.i]:S.obs[h.i];
+  drag={it,kind:h.kind,dx:p.x-it.x,dy:p.y-it.y}; plan.setPointerCapture(e.pointerId); plan.style.cursor='grabbing'; });
+plan.addEventListener('pointermove',e=>{
+  const p=evPos(e);
+  if(drag){ const ox=drag.it.x, oy=drag.it.y; drag.it.x=p.x-drag.dx; drag.it.y=p.y-drag.dy;
+    if(drag.kind==='fan') drag.it.z+=ceilAt(drag.it.x,drag.it.y)-ceilAt(ox,oy); clampAll();
+    S.slice=sliceFrom(drag.it); $('slice').value=S.slice; $('sliceVal').textContent=lenLabel(secC());
+    if(drag.kind==='fan') syncFan(); changed(); }
+  else plan.style.cursor=hit(p)?'grab':'crosshair'; });
+plan.addEventListener('pointerup',()=>{ if(drag&&drag.kind==='obs') scheduleRec(); drag=null; plan.style.cursor='crosshair'; if(S.sel.kind==='fan') syncFan(); sp.forEach(spawnSec); });
+plan.addEventListener('dblclick',e=>{
+  if(!S.ran) return;
+  const p=evPos(e); if(p.x<0||p.y<0||p.x>S.L||p.y>S.W||hit(p)) return;
+  const cur=curModel(), f=makeFan(cur?.model||S.recs[0]?.m.id||'ECO-20',p.x,p.y);
+  if(cur){ f.speed=cur.speed; f.dir=cur.dir; keepDrop(f,cur,p.x,p.y); }
+  S.fans.push(f); clampAll(); select('fan',S.fans.length-1); renderRecs(); });
+document.addEventListener('keydown',e=>{
+  if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)||!$('repOverlay').hidden) return;
+  const it=S.sel.kind==='fan'?S.fans[S.sel.i]:S.obs[S.sel.i]; if(!it) return;
+  const st=e.shiftKey?3:.5, m={ArrowLeft:[-st,0],ArrowRight:[st,0],ArrowUp:[0,-st],ArrowDown:[0,st]}[e.key];
+  if(m){ e.preventDefault(); const z0=ceilAt(it.x,it.y); it.x+=m[0]; it.y+=m[1]; if(S.sel.kind==='fan') it.z+=ceilAt(it.x,it.y)-z0; clampAll(); syncFan(); changed(); if(S.sel.kind==='obs') scheduleRec(); }
+});
+
+fitAll();
+syncRoom(); resetRun();
+
+/* ---------- One-page report ---------- */
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+const ZNAME={0.3:'z_floor',1.1:'z_waist',1.6:'z_head'};
+function snapshot(which){
+  const keep=S.sel; S.sel={kind:'none',i:-1};
+  let url; if(which==='plan'){ drawPlan(); url=plan.toDataURL('image/png'); } else { drawSection(); url=sec.toDataURL('image/png'); }
+  S.sel=keep; return url;
+}
+function speedText(f){ const F=famOf(f);
+  if(F.steps===2) return f.speed>0.9?t('high'):t('low');
+  if(F.steps===8) return t('of',{a:Math.round(f.speed*8),b:8});
+  if(F.steps===10) return t('of',{a:Math.round(f.speed*10),b:10})+` (${Math.round(f.speed*100)}%)`;
+  return Math.round(f.speed*100)+'%'; }
+function buildReport(){
+  if(S.dirty){ buildHeat(); S.dirty=false; }
+  const ft=S.units==='ft', spd=v=>ft?Math.round(v*MS2FPM)+' FPM':v.toFixed(2)+' m/s';
+  const area=a=>ft?Math.round(a/(FT*FT)).toLocaleString(LOC())+' ft²':Math.round(a).toLocaleString(LOC())+' m²';
+  // floor statistics from the analysis grid
+  let sum=0,cov=0,ce=0,n=0; const TH=[0.254,0.508,1.016,1.524], bands=[0,0,0,0,0];
+  for(let i=0;i<grid.v.length;i++){ if(!grid.m[i]) continue; const v=grid.v[i]; n++; sum+=v; ce+=cooling(v); if(v>=BREEZE) cov++;
+    let b=0; while(b<4&&v>=TH[b]) b++; bands[b]++; }
+  n=Math.max(1,n);
+  const BV=ft?['50','100','200','300']:['0.25','0.5','1.0','1.5'], BU=ft?' FPM':' m/s';
+  const BL=[t('band_under',{v:BV[0]+BU}),t('band_range',{a:BV[0],b:BV[1]+BU}),t('band_range',{a:BV[1],b:BV[2]+BU}),t('band_range',{a:BV[2],b:BV[3]+BU}),t('band_over',{v:BV[3]+BU})];
+  const BC=[0.12,0.38,0.76,1.27,1.9].map(v=>`rgb(${cmap(Math.sqrt(v/VMAX)).map(Math.round)})`);
+  let w=0,cfm=0,wNote=false; S.fans.forEach(f=>{ const p=perf(MB[f.model],f.speed); cfm+=p.cfm; if(p.w!=null){ w+=p.w; if(p.wMax) wNote=true; } else wNote=true; });
+  const ceil=S.fans.filter(f=>famOf(f).kind!=='circ');
+  const footprint=S.obs.reduce((a,o)=>a+o.l*o.d,0);
+  // fan schedule grouped by identical settings
+  const groups=new Map();
+  S.fans.forEach(f=>{ const k=[f.model,f.speed,(ceilAt(f.x,f.y)-f.z).toFixed(1),f.dir].join('|'); const g=groups.get(k)||{f,qty:0,zMin:1e9,zMax:-1e9};
+    g.qty++; g.zMin=Math.min(g.zMin,f.z); g.zMax=Math.max(g.zMax,f.z); groups.set(k,g); });
+  const rows=[...groups.values()].map(({f,qty,zMin,zMax})=>{ const m=MB[f.model], p=perf(m,f.speed), circ=famOf(f).kind==='circ';
+    return `<tr><td>${esc(m.label)}${f.dir==='up'&&!circ?t('reverse'):''}</td><td class="n">${qty}</td><td>${speedText(f)}</td><td class="n">${rng(zMin,zMax)}</td><td class="n">${Math.round(p.cfm).toLocaleString(LOC())} CFM</td><td class="n">${p.w!=null?Math.round(p.w).toLocaleString(LOC())+' W':t('na')}</td></tr>`; }).join('');
+  const rec=S.recs.find(r=>ceil.length===r.n&&ceil.every(f=>f.model===r.m.id));
+  const others=S.recs.filter(r=>r!==rec);
+  const m0=ceil[0]?MB[ceil[0].model]:null;
+  const srcs=new Set(S.fans.map(f=>t('src_'+MB[f.model].cfmSrc)));
+  const power=S.power==='any'?t('not_spec'):SUP[S.power]||S.power;
+  const zName=ZNAME[S.zA]?t(ZNAME[S.zA]):t('custom');
+  const zTxt=t('ztxt',{name:LANG==='es'?zName.toLowerCase():zName,h:lenLabel(S.zA)});
+  const date=new Date().toLocaleDateString(LOC(),{year:'numeric',month:'long',day:'numeric'});
+  const project=$('repProject').value.trim(), by=$('repBy').value.trim();
+  const scaleBg=$('scaleBar').style.background;
+  $('repPage').innerHTML=`
+  <header class="rp-head">
+    <div><p class="rp-brand">${t('rp_brand')}</p><h1>${t('rp_title')}</h1><p class="rp-proj">${project?esc(project):t('rp_untitled')}</p></div>
+    <div class="rp-meta"><span>${date}</span>${by?`<span>${t('rp_by',{n:esc(by)})}</span>`:''}</div>
+  </header>
+  <section class="rp-stats">
+    <div class="rp-stat hero"><b>${ft?(ce/n*1.8).toFixed(1)+' °F':(ce/n).toFixed(1)+' °C'}</b><span>${t('st_cool')}</span></div>
+    <div class="rp-stat"><b>${spd(sum/n)}</b><span>${t('st_avg')}</span></div>
+    <div class="rp-stat"><b>${Math.round(cov/n*100)}%</b><span>${t('st_cov',{v:ft?'50 FPM':'0.25 m/s'})}</span></div>
+    <div class="rp-stat"><b>${ft?Math.round(cfm).toLocaleString(LOC())+' CFM':Math.round(cfm*CFM2M3S*3600).toLocaleString(LOC())+' m³/h'}</b><span>${t('st_cfm')}</span></div>
+    <div class="rp-stat"><b>${Math.round(w).toLocaleString(LOC())} W</b><span>${t('rp_pow')}${wNote?t('see_notes'):''}</span></div>
+    <div class="rp-stat"><b>${ceil.length?area(S.L*S.W/ceil.length):t('na')}</b><span>${t('rp_area')}</span></div>
+  </section>
+  <figure class="rp-fig"><div class="img" style="height:292px"><img src="${snapshot('plan')}" alt="${t('floorPlan')}"></div>
+    <figcaption><span>${t('rp_plan_cap',{z:zTxt.toLowerCase()})}</span>
+    <span class="rp-scale">${t('still')}<i style="background:${scaleBg}"></i>${ft?'600 FPM':VMAX.toFixed(1)+' m/s'}</span></figcaption></figure>
+  <figure class="rp-fig"><div class="img" style="height:96px"><img src="${snapshot('sec')}" alt="${t('secTitle')}"></div>
+    <figcaption><span>${t('rp_sec_cap')}</span></figcaption></figure>
+  <div class="rp-cols">
+    <div>
+      <section><h2>${t('rp_building')}</h2><dl class="rp-dl">
+        <dt>${t('rp_size')}</dt><dd>${lenLabel(S.L)} × ${lenLabel(S.W)}</dd>
+        <dt>${t('rp_roof')}</dt><dd>${sloped()?t('rp_roof_val',{type:t(S.roof.type==='single'?'roof_single':'roof_gable'),p:Math.round(S.roof.slope*1000)/10,d:roofDeg().toFixed(1)}):t('roof_flat')}</dd>
+        <dt>${t('rp_ceiling')}</dt><dd>${sloped()?rng(S.H,Hmax()):lenLabel(S.H)}</dd>
+        <dt>${t('rp_floorarea')}</dt><dd>${area(S.L*S.W)}</dd>
+        <dt>${t('rp_racks')}</dt><dd>${S.obs.length?t('rp_items',{n:S.obs.length,a:area(footprint)}):t('none')}</dd>
+        <dt>${t('rp_power')}</dt><dd>${power}</dd>
+        <dt>${t('rp_wet')}</dt><dd>${S.wet?t('yes'):t('no')}</dd>
+        <dt>${t('rp_measured')}</dt><dd>${zTxt}</dd>
+      </dl></section>
+      <section><h2>${t('rp_speedfloor')}</h2>
+        <div class="rp-bar">${bands.map((b,i)=>b?`<span style="width:${b/n*100}%;background:${BC[i]}"></span>`:'').join('')}</div>
+        <div class="rp-legend">${bands.map((b,i)=>`<span><i style="background:${BC[i]}"></i>${BL[i]}</span><b>${Math.round(b/n*100)}%</b>`).join('')}</div>
+      </section>
+    </div>
+    <div>
+      <section><h2>${t('rp_fansel')}</h2>
+        <table class="rp-table"><thead><tr><th>${t('th_model')}</th><th class="n">${t('th_qty')}</th><th>${t('th_speed')}</th><th class="n">${t('th_height')}</th><th class="n">${t('th_cfm')}</th><th class="n">${t('th_w')}</th></tr></thead><tbody>${rows}</tbody></table>
+      </section>
+      <section><dl class="rp-dl">
+        ${rec?`<dt>${t('rp_layout')}</dt><dd>${t('rp_grid',{nx:rec.nx,ny:rec.ny})}${m0?t('rp_recsp',{s:lenLabel(m0.spacing*FT)}):''}</dd>`:''}
+        ${rec&&rec.opSpeed!=null?`<dt>${t('rp_lowest',{t:Math.round(COV_TARGET*100)})}</dt><dd>${rec.opSpeed>=1?t('full_speed'):Math.round(rec.opSpeed*100)+'%'}${rec.opW!=null?t('rp_total',{w:Math.round(rec.opW).toLocaleString(LOC())}):''}</dd>`:''}
+        ${m0?`<dt>${t('rp_below')}</dt><dd>${(()=>{ const ds=ceil.map(f=>ceilAt(f.x,f.y)-f.z); return rng(Math.min(...ds),Math.max(...ds)); })()}</dd>`:''}
+        <dt>${t('airflow_data')}</dt><dd>${[...srcs].join(', ')}</dd>
+      </dl></section>
+      ${others.length?`<section><h2>${t('rp_others')}</h2><ul class="rp-ul">${others.map(r=>`<li>${t('rp_other_li',{n:r.n,m:esc(r.m.label),c:Math.round(r.cov*100)})}${r.opW!=null?t('rp_other_w',{w:Math.round(r.opW).toLocaleString(LOC()),s:Math.round(r.opSpeed*100)}):''}</li>`).join('')}</ul></section>`:''}
+    </div>
+  </div>
+  <footer class="rp-foot">${t('rp_foot1')}${wNote?t('rp_foot_w'):''}${t('rp_foot2')}</footer>`;
+  fitReport();
+}
+function fitReport(){
+  const wrap=$('repWrap'), page=$('repPage');
+  const sc=Math.min(1,wrap.clientWidth/816);
+  page.style.transform=`scale(${sc})`; wrap.style.height=Math.ceil(1056*sc)+'px';
+}
+let downloadsApi=null;
+async function openReport(){
+  $('repOverlay').hidden=false; $('repMsg').textContent=''; document.body.style.overflow='hidden';
+  buildReport(); $('repClose').focus();
+  if(downloadsApi===null&&window.claude&&window.claude.use){
+    try{ downloadsApi=await window.claude.use('downloads'); }catch(e){ downloadsApi=false; } }
+  const standalone=!window.claude;
+  $('repPdf').hidden=!((downloadsApi||standalone)&&window.jspdf&&window.html2canvas);
+  if($('repPdf').hidden) $('repMsg').textContent=t('rp_msg_print');
+}
+function closeReport(){ $('repOverlay').hidden=true; document.body.style.overflow=''; $('reportBtn').focus(); }
+async function downloadPdf(){
+  const b=$('repPdf'), page=$('repPage'); b.disabled=true; b.textContent=t('preparing'); $('repMsg').textContent='';
+  const prev=page.style.transform;
+  try{
+    page.style.transform='none';
+    const canvas=await window.html2canvas(page,{scale:2,backgroundColor:'#ffffff',logging:false});
+    page.style.transform=prev;
+    const pdf=new window.jspdf.jsPDF({unit:'pt',format:'letter',orientation:'portrait'});
+    pdf.addImage(canvas.toDataURL('image/jpeg',0.93),'JPEG',0,0,612,792);
+    const name=($('repProject').value.trim()||t('file_base')).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'-')+t('file_suffix');
+    if(downloadsApi) await downloadsApi.save({filename:name,data:pdf.output('blob')});
+    else { const url=URL.createObjectURL(pdf.output('blob')), a=document.createElement('a');
+      a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000); }
+    $('repMsg').textContent=t('saved');
+  }catch(e){
+    page.style.transform=prev;
+    const code=e&&e.code;
+    $('repMsg').textContent= code==='declined'?t('cancelled') : code==='rate_limited'?t('ratelimited') : t('pdf_fail');
+  }finally{ b.disabled=false; b.textContent=t('pdf'); }
+}
+$('reportBtn').onclick=openReport;
+$('repClose').onclick=closeReport;
+$('repPrint').onclick=()=>{ $('repPage').style.transform='none'; window.print(); fitReport(); };
+$('repPdf').onclick=downloadPdf;
+['repProject','repBy'].forEach(id=>$(id).addEventListener('input',()=>{ if(!$('repOverlay').hidden) buildReport(); }));
+$('repOverlay').addEventListener('click',e=>{ if(e.target.id==='repOverlay') closeReport(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('repOverlay').hidden) closeReport(); });
+window.addEventListener('resize',()=>{ if(!$('repOverlay').hidden) fitReport(); });
+window.addEventListener('afterprint',fitReport);
+function applyLang(){
+  document.documentElement.lang=LANG; document.title=t('appTitle');
+  document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
+  document.querySelectorAll('[data-i18n-ph]').forEach(el=>el.placeholder=t(el.dataset.i18nPh));
+  document.querySelectorAll('[data-i18n-aria]').forEach(el=>el.setAttribute('aria-label',t(el.dataset.i18nAria)));
+  document.querySelectorAll('#langSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.l===LANG));
+  modelSel.querySelectorAll('optgroup').forEach(g=>{ const F=FAM[g.dataset.fam]; g.label=`${F.name} (${t('line_'+g.dataset.fam)})`; });
+  syncRoom(); renderLists(); syncFan(); syncObs(); updateRunState();
+  if(S.ran||S.recMeta){ renderRecs(); updateStats(); } else $('recGrid').innerHTML=`<p class="empty-state">${t('emptyState')}</p>`;
+  if(!$('repOverlay').hidden){ buildReport(); if($('repPdf').hidden) $('repMsg').textContent=t('rp_msg_print'); }
+}
+document.querySelectorAll('#langSeg button').forEach(b=>b.onclick=()=>{ LANG=b.dataset.l; applyLang(); });
+applyLang();
+
+
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
